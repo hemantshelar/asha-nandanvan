@@ -8,13 +8,14 @@ namespace AshaNandanvan.Infrastructure.Orders;
 
 public sealed class OrderService : IOrderService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public OrderService(AppDbContext db) => _db = db;
+    public OrderService(IDbContextFactory<AppDbContext> dbFactory) => _dbFactory = dbFactory;
 
     public async Task<OrderSummary> CreatePendingOrderAsync(string userId, CheckoutRequest request, CancellationToken cancellationToken = default)
     {
-        var cart = await _db.Carts
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var cart = await db.Carts
             .Include(c => c.Items)
             .ThenInclude(i => i.Product)
             .FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken)
@@ -63,14 +64,15 @@ public sealed class OrderService : IOrderService
             }).ToList()
         };
 
-        _db.Orders.Add(order);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.Orders.Add(order);
+        await db.SaveChangesAsync(cancellationToken);
         return ToSummary(order);
     }
 
     public async Task<OrderSummary?> GetByNumberAsync(string orderNumber, string? userId = null, bool admin = false, CancellationToken cancellationToken = default)
     {
-        var query = _db.Orders.AsNoTracking().Include(o => o.Items).Where(o => o.OrderNumber == orderNumber);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var query = db.Orders.AsNoTracking().Include(o => o.Items).Where(o => o.OrderNumber == orderNumber);
         if (!admin && userId is not null)
         {
             query = query.Where(o => o.UserId == userId);
@@ -82,7 +84,8 @@ public sealed class OrderService : IOrderService
 
     public async Task<IReadOnlyList<OrderSummary>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var orders = await _db.Orders.AsNoTracking()
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var orders = await db.Orders.AsNoTracking()
             .Include(o => o.Items)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -92,17 +95,19 @@ public sealed class OrderService : IOrderService
 
     public async Task UpdateStatusAsync(int orderId, OrderStatus status, CancellationToken cancellationToken = default)
     {
-        var order = await _db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
             ?? throw new InvalidOperationException("Order was not found.");
 
         order.Status = status;
         order.UpdatedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     public async Task MarkPaidAsync(string orderNumber, string paymentReference, CancellationToken cancellationToken = default)
     {
-        var order = await _db.Orders
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders
             .Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
 
@@ -113,7 +118,7 @@ public sealed class OrderService : IOrderService
 
         foreach (var line in order.Items)
         {
-            var product = await _db.Products.FirstAsync(p => p.Id == line.ProductId, cancellationToken);
+            var product = await db.Products.FirstAsync(p => p.Id == line.ProductId, cancellationToken);
             product.Stock = Math.Max(0, product.Stock - line.Quantity);
             product.UpdatedAt = DateTimeOffset.UtcNow;
         }
@@ -122,14 +127,33 @@ public sealed class OrderService : IOrderService
         order.PaymentReference = paymentReference;
         order.UpdatedAt = DateTimeOffset.UtcNow;
 
-        var carts = await _db.Carts.Include(c => c.Items).Where(c => c.UserId == order.UserId).ToListAsync(cancellationToken);
+        var carts = await db.Carts.Include(c => c.Items).Where(c => c.UserId == order.UserId).ToListAsync(cancellationToken);
         foreach (var cart in carts)
         {
             cart.Items.Clear();
             cart.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AttachPaymentSessionAsync(string orderNumber, string provider, string? reference, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
+        if (order is null)
+        {
+            return;
+        }
+
+        order.PaymentProvider = provider;
+        if (!string.IsNullOrWhiteSpace(reference))
+        {
+            order.PaymentReference = reference;
+        }
+
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static OrderSummary ToSummary(Order order) =>
@@ -144,5 +168,6 @@ public sealed class OrderService : IOrderService
             order.CustomerEmail,
             order.Phone,
             order.CreatedAt,
-            order.Items.Select(i => new OrderLineSummary(i.ProductName, i.Unit, i.Quantity, i.UnitPrice)).ToList());
+            order.Items.Select(i => new OrderLineSummary(i.ProductName, i.Unit, i.Quantity, i.UnitPrice)).ToList(),
+            order.PaymentReference);
 }

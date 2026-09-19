@@ -9,7 +9,7 @@ A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.
 - EF Core + SQL Server LocalDB
 - ASP.NET Core Identity + Google sign-in
 - IOptions for store, Google, payment, and admin settings
-- `IPaymentProvider` — Stripe when keys are present, otherwise a local mock so checkout can still be demonstrated
+- `IPaymentProvider` — Square sandbox checkout when keys are present; Stripe or a local mock as fallback
 
 ## Run locally
 
@@ -51,17 +51,18 @@ dotnet user-secrets init
 dotnet user-secrets set "GoogleAuth:ClientId" "..."
 dotnet user-secrets set "GoogleAuth:ClientSecret" "..."
 dotnet user-secrets set "Admin:SeedEmail" "your.google.account@gmail.com"
-dotnet user-secrets set "Payment:Stripe:SecretKey" "sk_test_..."
-dotnet user-secrets set "Payment:Stripe:PublishableKey" "pk_test_..."
-dotnet user-secrets set "Payment:Stripe:WebhookSecret" "whsec_..."
+dotnet user-secrets set "Payment:Provider" "Square"
+dotnet user-secrets set "Payment:Square:ApplicationId" "sandbox-sq0idb-..."
+dotnet user-secrets set "Payment:Square:AccessToken" "EAAA..."
+dotnet user-secrets set "Payment:Square:LocationId" "L..."
+dotnet user-secrets set "Payment:Square:UseSandbox" "true"
+dotnet user-secrets set "Payment:Square:WebhookSignatureKey" ""
 ```
 
 Google authorized redirect URI: `https://localhost:7095/signin-google`
 
 The first Google account that matches `Admin:SeedEmail` is promoted to Admin and can manage products and orders.
 
-Without Stripe keys, checkout uses the mock provider and marks the order paid immediately.
+`Payment:Provider` is `Square`. Checkout redirects to Square hosted checkout. After you pay, Square returns to `/checkout/confirmation/{orderNumber}` and the app marks the order paid. Localhost cannot receive Square webhooks, so that return confirmation is the paid path.
 
-## Payment providers
-
-`Payment:Provider` is `Stripe` today. The shop talks only to `IPaymentProvider`, so Square can be added later without changing the checkout page.
+Square sandbox test card: `4111 1111 1111 1111`, any future expiry, any CVV, any postcode.

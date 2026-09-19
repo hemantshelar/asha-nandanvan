@@ -121,8 +121,11 @@
 
     private async void OnCartChanged()
     {
-        await RefreshCartAsync();
-        await InvokeAsync(StateHasChanged);
+        await InvokeAsync(async () =>
+        {
+            await RefreshCartAsync();
+            StateHasChanged();
+        });
     }
 
     private async Task RefreshCartAsync()

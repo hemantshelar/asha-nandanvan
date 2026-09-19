@@ -11,16 +11,17 @@ namespace AshaNandanvan.Web.Services;
 public sealed class CartService : ICartService
 {
     private const string StorageKey = "asha.cart";
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly ProtectedLocalStorage _localStorage;
+    private readonly SemaphoreSlim _gate = new(1, 1);
 
     public CartService(
-        AppDbContext db,
+        IDbContextFactory<AppDbContext> dbFactory,
         AuthenticationStateProvider authenticationStateProvider,
         ProtectedLocalStorage localStorage)
     {
-        _db = db;
+        _dbFactory = dbFactory;
         _authenticationStateProvider = authenticationStateProvider;
         _localStorage = localStorage;
     }
@@ -29,64 +30,82 @@ public sealed class CartService : ICartService
 
     public async Task<CartSnapshot> GetAsync(CancellationToken cancellationToken = default)
     {
-        var userId = await GetUserIdAsync();
-        if (userId is not null)
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            await MergeGuestCartAsync(cancellationToken);
-            return await GetDbSnapshotAsync(userId, cancellationToken);
-        }
+            var userId = await GetUserIdAsync();
+            await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            if (userId is not null)
+            {
+                await MergeGuestCartCoreAsync(db, userId, notify: false, cancellationToken);
+                return await GetDbSnapshotAsync(db, userId, cancellationToken);
+            }
 
-        return await GetGuestSnapshotAsync();
+            return await GetGuestSnapshotAsync(db);
+        }
+        finally
+        {
+            _gate.Release();
+        }
     }
 
     public async Task AddAsync(int productId, int quantity = 1, CancellationToken cancellationToken = default)
     {
-        var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId && p.IsActive, cancellationToken)
-            ?? throw new InvalidOperationException("That product is not available.");
-
-        var userId = await GetUserIdAsync();
-        if (userId is not null)
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            var cart = await GetOrCreateDbCartAsync(userId, cancellationToken);
-            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-            var next = (item?.Quantity ?? 0) + quantity;
-            if (next > product.Stock)
-            {
-                throw new InvalidOperationException($"Only {product.Stock} {product.Unit} available.");
-            }
+            await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId && p.IsActive, cancellationToken)
+                ?? throw new InvalidOperationException("That product is not available.");
 
-            if (item is null)
+            var userId = await GetUserIdAsync();
+            if (userId is not null)
             {
-                cart.Items.Add(new CartItem { ProductId = productId, Quantity = next });
+                var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+                var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+                var next = (item?.Quantity ?? 0) + quantity;
+                if (next > product.Stock)
+                {
+                    throw new InvalidOperationException($"Only {product.Stock} {product.Unit} available.");
+                }
+
+                if (item is null)
+                {
+                    cart.Items.Add(new CartItem { ProductId = productId, Quantity = next });
+                }
+                else
+                {
+                    item.Quantity = next;
+                }
+
+                cart.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
             }
             else
             {
-                item.Quantity = next;
-            }
+                var lines = (await ReadGuestLinesAsync()).ToList();
+                var existing = lines.FirstOrDefault(l => l.ProductId == productId);
+                var next = (existing?.Quantity ?? 0) + quantity;
+                if (next > product.Stock)
+                {
+                    throw new InvalidOperationException($"Only {product.Stock} {product.Unit} available.");
+                }
 
-            cart.UpdatedAt = DateTimeOffset.UtcNow;
-            await _db.SaveChangesAsync(cancellationToken);
+                if (existing is null)
+                {
+                    lines.Add(new GuestLine(productId, next));
+                }
+                else
+                {
+                    lines[lines.IndexOf(existing)] = existing with { Quantity = next };
+                }
+
+                await WriteGuestLinesAsync(lines);
+            }
         }
-        else
+        finally
         {
-            var lines = (await ReadGuestLinesAsync()).ToList();
-            var existing = lines.FirstOrDefault(l => l.ProductId == productId);
-            var next = (existing?.Quantity ?? 0) + quantity;
-            if (next > product.Stock)
-            {
-                throw new InvalidOperationException($"Only {product.Stock} {product.Unit} available.");
-            }
-
-            if (existing is null)
-            {
-                lines.Add(new GuestLine(productId, next));
-            }
-            else
-            {
-                lines[lines.IndexOf(existing)] = existing with { Quantity = next };
-            }
-
-            await WriteGuestLinesAsync(lines);
+            _gate.Release();
         }
 
         Changed?.Invoke();
@@ -100,27 +119,36 @@ public sealed class CartService : ICartService
             return;
         }
 
-        var userId = await GetUserIdAsync();
-        if (userId is not null)
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            var cart = await GetOrCreateDbCartAsync(userId, cancellationToken);
-            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-            if (item is not null)
+            var userId = await GetUserIdAsync();
+            if (userId is not null)
             {
-                item.Quantity = quantity;
-                cart.UpdatedAt = DateTimeOffset.UtcNow;
-                await _db.SaveChangesAsync(cancellationToken);
+                await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+                var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+                var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+                if (item is not null)
+                {
+                    item.Quantity = quantity;
+                    cart.UpdatedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                var lines = (await ReadGuestLinesAsync()).ToList();
+                var index = lines.FindIndex(l => l.ProductId == productId);
+                if (index >= 0)
+                {
+                    lines[index] = lines[index] with { Quantity = quantity };
+                    await WriteGuestLinesAsync(lines);
+                }
             }
         }
-        else
+        finally
         {
-            var lines = (await ReadGuestLinesAsync()).ToList();
-            var index = lines.FindIndex(l => l.ProductId == productId);
-            if (index >= 0)
-            {
-                lines[index] = lines[index] with { Quantity = quantity };
-                await WriteGuestLinesAsync(lines);
-            }
+            _gate.Release();
         }
 
         Changed?.Invoke();
@@ -128,22 +156,31 @@ public sealed class CartService : ICartService
 
     public async Task RemoveAsync(int productId, CancellationToken cancellationToken = default)
     {
-        var userId = await GetUserIdAsync();
-        if (userId is not null)
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            var cart = await GetOrCreateDbCartAsync(userId, cancellationToken);
-            var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
-            if (item is not null)
+            var userId = await GetUserIdAsync();
+            if (userId is not null)
             {
-                cart.Items.Remove(item);
-                cart.UpdatedAt = DateTimeOffset.UtcNow;
-                await _db.SaveChangesAsync(cancellationToken);
+                await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+                var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+                var item = cart.Items.FirstOrDefault(i => i.ProductId == productId);
+                if (item is not null)
+                {
+                    cart.Items.Remove(item);
+                    cart.UpdatedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                var lines = (await ReadGuestLinesAsync()).Where(l => l.ProductId != productId).ToList();
+                await WriteGuestLinesAsync(lines);
             }
         }
-        else
+        finally
         {
-            var lines = (await ReadGuestLinesAsync()).Where(l => l.ProductId != productId).ToList();
-            await WriteGuestLinesAsync(lines);
+            _gate.Release();
         }
 
         Changed?.Invoke();
@@ -151,37 +188,71 @@ public sealed class CartService : ICartService
 
     public async Task ClearAsync(CancellationToken cancellationToken = default)
     {
-        var userId = await GetUserIdAsync();
-        if (userId is not null)
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            var cart = await _db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
-            if (cart is not null)
+            var userId = await GetUserIdAsync();
+            if (userId is not null)
             {
-                cart.Items.Clear();
-                cart.UpdatedAt = DateTimeOffset.UtcNow;
-                await _db.SaveChangesAsync(cancellationToken);
+                await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+                var cart = await db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
+                if (cart is not null)
+                {
+                    cart.Items.Clear();
+                    cart.UpdatedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
             }
+
+            await WriteGuestLinesAsync([]);
+        }
+        finally
+        {
+            _gate.Release();
         }
 
-        await WriteGuestLinesAsync([]);
         Changed?.Invoke();
     }
 
     public async Task MergeGuestCartAsync(CancellationToken cancellationToken = default)
     {
-        var userId = await GetUserIdAsync();
-        if (userId is null)
+        var notify = false;
+        await _gate.WaitAsync(cancellationToken);
+        try
         {
-            return;
+            var userId = await GetUserIdAsync();
+            if (userId is null)
+            {
+                return;
+            }
+
+            await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            notify = await MergeGuestCartCoreAsync(db, userId, notify: false, cancellationToken);
+        }
+        finally
+        {
+            _gate.Release();
         }
 
+        if (notify)
+        {
+            Changed?.Invoke();
+        }
+    }
+
+    private async Task<bool> MergeGuestCartCoreAsync(
+        AppDbContext db,
+        string userId,
+        bool notify,
+        CancellationToken cancellationToken)
+    {
         var guestLines = await ReadGuestLinesAsync();
         if (guestLines.Count == 0)
         {
-            return;
+            return false;
         }
 
-        var cart = await GetOrCreateDbCartAsync(userId, cancellationToken);
+        var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
         foreach (var line in guestLines)
         {
             var existing = cart.Items.FirstOrDefault(i => i.ProductId == line.ProductId);
@@ -196,14 +267,20 @@ public sealed class CartService : ICartService
         }
 
         cart.UpdatedAt = DateTimeOffset.UtcNow;
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
         await WriteGuestLinesAsync([]);
-        Changed?.Invoke();
+
+        if (notify)
+        {
+            Changed?.Invoke();
+        }
+
+        return true;
     }
 
-    private async Task<CartSnapshot> GetDbSnapshotAsync(string userId, CancellationToken cancellationToken)
+    private static async Task<CartSnapshot> GetDbSnapshotAsync(AppDbContext db, string userId, CancellationToken cancellationToken)
     {
-        var cart = await _db.Carts
+        var cart = await db.Carts
             .AsNoTracking()
             .Include(c => c.Items)
             .ThenInclude(i => i.Product)
@@ -227,7 +304,7 @@ public sealed class CartService : ICartService
         return new CartSnapshot(lines);
     }
 
-    private async Task<CartSnapshot> GetGuestSnapshotAsync()
+    private async Task<CartSnapshot> GetGuestSnapshotAsync(AppDbContext db)
     {
         var guestLines = await ReadGuestLinesAsync();
         if (guestLines.Count == 0)
@@ -236,7 +313,7 @@ public sealed class CartService : ICartService
         }
 
         var ids = guestLines.Select(l => l.ProductId).ToList();
-        var products = await _db.Products.AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync();
+        var products = await db.Products.AsNoTracking().Where(p => ids.Contains(p.Id)).ToListAsync();
         var lines = guestLines
             .Join(products, l => l.ProductId, p => p.Id, (l, p) => new CartLine(
                 p.Id, p.Name, p.Slug, p.Unit, p.Price, l.Quantity, p.Stock, p.ImagePath))
@@ -245,9 +322,9 @@ public sealed class CartService : ICartService
         return new CartSnapshot(lines);
     }
 
-    private async Task<Cart> GetOrCreateDbCartAsync(string userId, CancellationToken cancellationToken)
+    private static async Task<Cart> GetOrCreateDbCartAsync(AppDbContext db, string userId, CancellationToken cancellationToken)
     {
-        var cart = await _db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
+        var cart = await db.Carts.Include(c => c.Items).FirstOrDefaultAsync(c => c.UserId == userId, cancellationToken);
         if (cart is not null)
         {
             return cart;
@@ -260,8 +337,8 @@ public sealed class CartService : ICartService
             CreatedAt = DateTimeOffset.UtcNow,
             UpdatedAt = DateTimeOffset.UtcNow
         };
-        _db.Carts.Add(cart);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.Carts.Add(cart);
+        await db.SaveChangesAsync(cancellationToken);
         return cart;
     }
 

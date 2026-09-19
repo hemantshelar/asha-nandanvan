@@ -16,6 +16,7 @@
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
+    <PackageReference Include="Square" Version="47.0.0" />
     <PackageReference Include="Stripe.net" Version="52.4.2" />
   </ItemGroup>
 

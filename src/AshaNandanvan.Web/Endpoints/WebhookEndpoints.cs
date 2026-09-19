@@ -15,6 +15,15 @@ public static class WebhookEndpoints
             return Results.Ok();
         }).DisableAntiforgery();
 
+        endpoints.MapPost("/webhooks/square", async (HttpRequest request, IPaymentProvider payment) =>
+        {
+            using var reader = new StreamReader(request.Body);
+            var payload = await reader.ReadToEndAsync();
+            var signature = request.Headers["x-square-hmacsha256-signature"].ToString();
+            await payment.HandleWebhookAsync(payload, signature);
+            return Results.Ok();
+        }).DisableAntiforgery();
+
         return endpoints;
     }
 }
