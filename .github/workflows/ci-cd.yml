@@ -64,6 +64,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check Azure OIDC secrets
+        env:
+          CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
+          TENANT: ${{ secrets.AZURE_TENANT_ID }}
+          SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+        run: |
+          echo "AZURE_CLIENT_ID length=${#CLIENT} (expect 36)"
+          echo "AZURE_TENANT_ID length=${#TENANT} (expect 36)"
+          echo "AZURE_SUBSCRIPTION_ID length=${#SUB} (expect 36)"
+          if [ ${#CLIENT} -ne 36 ] || [ ${#TENANT} -ne 36 ] || [ ${#SUB} -ne 36 ]; then
+            echo "One or more Azure IDs are missing or have extra spaces. Re-save the dev environment secrets."
+            exit 1
+          fi
+
       - name: Azure login (OIDC)
         id: azure-login
         uses: azure/login@v2
@@ -71,6 +85,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
 
       - name: What-if
         env:
@@ -170,6 +185,7 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          audience: api://AzureADTokenExchange
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v3

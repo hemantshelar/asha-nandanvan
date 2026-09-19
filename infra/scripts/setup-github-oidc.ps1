@@ -32,18 +32,22 @@ if (-not $sp) {
 }
 
 $subject = "repo:${repo}:environment:${environment}"
-$existingFed = az ad app federated-credential list --id $clientId --query "[?name=='github-dev']" | ConvertFrom-Json
+$appObjectId = $app.id
+$existingFed = az ad app federated-credential list --id $appObjectId --query "[?subject=='$subject']" | ConvertFrom-Json
 if (-not $existingFed) {
     $fed = @{
-        name        = 'github-dev'
+        name        = 'github-env-dev'
         issuer      = 'https://token.actions.githubusercontent.com'
         subject     = $subject
         audiences   = @('api://AzureADTokenExchange')
         description = 'GitHub Actions environment dev'
     } | ConvertTo-Json -Compress
     $fedFile = Join-Path $env:TEMP 'ashanandanvan-fed.json'
-    Set-Content -Path $fedFile -Value $fed -Encoding utf8
-    az ad app federated-credential create --id $clientId --parameters $fedFile | Out-Null
+    [System.IO.File]::WriteAllText($fedFile, $fed)
+    az ad app federated-credential create --id $appObjectId --parameters $fedFile
+    Write-Host "Created federated credential subject $subject"
+} else {
+    Write-Host "Federated credential already exists for $subject"
 }
 
 $group = az ad group list --display-name $groupName --query '[0]' | ConvertFrom-Json
