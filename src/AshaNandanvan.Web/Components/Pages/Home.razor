@@ -1,0 +1,93 @@
+﻿@page "/"
+@inject IOptions<StoreOptions> StoreAccessor
+@inject IProductService Products
+
+<PageTitle>@Store.Name — Sydney backyard living</PageTitle>
+
+<section class="hero">
+    <div class="hero__grid">
+        <div>
+            <p class="eyebrow">Sydney · live backyard</p>
+            <h1>Live the best backyard experience</h1>
+            <p class="lede">@Store.Tagline</p>
+            <p class="hero__copy">
+                Chickens, compost worms, and food grown in one Sydney loop.
+                Scraps become soil. Soil becomes dinner. What grows here stays here.
+            </p>
+            <div class="hero__actions">
+                <a class="btn btn--solid" href="/shop">Shop the harvest</a>
+                <a class="btn btn--ghost" href="/how-we-live">How we live</a>
+            </div>
+        </div>
+        <div class="hero__art" aria-hidden="true">
+            <img src="/images/hero.svg" alt="" />
+        </div>
+    </div>
+</section>
+
+<section class="band">
+    <div class="shell">
+        <p class="eyebrow section-kicker">Fresh</p>
+        <div class="section-head">
+            <h2>New from the backyard</h2>
+            <a class="btn btn--ghost" href="/shop">See all</a>
+        </div>
+        <div class="show-row">
+            @foreach (var product in _featured)
+            {
+                <ProductCard Product="product" />
+            }
+        </div>
+    </div>
+</section>
+
+<section class="band band--alt">
+    <div class="shell">
+        <p class="eyebrow section-kicker">The loop</p>
+        <div class="section-head">
+            <h2>Live the experience</h2>
+        </div>
+        <div class="cards-3">
+            <article class="experience-card">
+                <img src="/images/chickens.svg" alt="" />
+                <h3>Chickens</h3>
+                <p>The flock turns leftovers into eggs and scratches the beds for the next planting.</p>
+            </article>
+            <article class="experience-card">
+                <img src="/images/worms.svg" alt="" />
+                <h3>Worms</h3>
+                <p>Live compost worms work under the surface. Take a starter colony home.</p>
+            </article>
+            <article class="experience-card">
+                <img src="/images/compost.svg" alt="" />
+                <h3>Black gold</h3>
+                <p>Worm castings — the black gold this backyard runs on.</p>
+            </article>
+        </div>
+    </div>
+</section>
+
+<section class="shell split">
+    <div>
+        <p class="eyebrow">Closed loop</p>
+        <h2>What grows here stays here</h2>
+        <p class="lede">
+            Peelings and hen scraps go to the worms. Castings go back to the beds.
+            Surplus leaves the gate only when a neighbour collects it in Sydney.
+        </p>
+        <a class="btn btn--solid" href="@Store.FacebookUrl" target="_blank" rel="noreferrer">Follow on Facebook</a>
+    </div>
+    <blockquote class="pullquote">
+        We create black gold with composting, then feed it back to the same soil that fed us.
+    </blockquote>
+</section>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+    private IReadOnlyList<ProductListItem> _featured = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _featured = (await Products.GetActiveAsync()).Take(4).ToList();
+    }
+}

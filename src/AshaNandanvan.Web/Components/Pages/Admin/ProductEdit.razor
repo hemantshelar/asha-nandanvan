@@ -1,0 +1,126 @@
+@page "/admin/products/edit"
+@page "/admin/products/edit/{Id:int}"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IProductService Products
+@inject IImageStorage Images
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(Id.HasValue ? "Edit product" : "Add product") — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>@(Id.HasValue ? "Edit product" : "Add product")</h1>
+    </div>
+</section>
+
+<section class="shell">
+    <form class="admin-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+        <label>
+            Name
+            <input @bind="_model.Name" required />
+        </label>
+        <label>
+            Description
+            <textarea @bind="_model.Description" rows="5" required></textarea>
+        </label>
+        <label>
+            Category
+            <select @bind="_category">
+                <option value="@ProductCategory.Eggs">Eggs</option>
+                <option value="@ProductCategory.Veggies">Veggies</option>
+                <option value="@ProductCategory.WormsAndCompost">Worms &amp; compost</option>
+            </select>
+        </label>
+        <label>
+            Price (AUD)
+            <input type="number" step="0.01" min="0" @bind="_model.Price" required />
+        </label>
+        <label>
+            Stock
+            <input type="number" min="0" @bind="_model.Stock" required />
+        </label>
+        <label>
+            Unit
+            <input @bind="_model.Unit" required />
+        </label>
+        <label class="check">
+            <input type="checkbox" @bind="_model.IsActive" />
+            Active in the shop
+        </label>
+        <label>
+            Photo
+            <InputFile OnChange="OnFile" accept="image/*" />
+        </label>
+        @if (!string.IsNullOrWhiteSpace(_model.ImagePath))
+        {
+            <img class="preview" src="@_model.ImagePath" alt="" />
+        }
+        <button class="btn btn--solid" type="submit" disabled="@_busy">Save</button>
+    </form>
+</section>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+    private readonly ProductEditModel _model = new();
+    private ProductCategory _category = ProductCategory.Veggies;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Id is null)
+        {
+            return;
+        }
+
+        var product = await Products.GetByIdAsync(Id.Value);
+        if (product is null)
+        {
+            Navigation.NavigateTo("/admin/products");
+            return;
+        }
+
+        _model.Id = product.Id;
+        _model.Name = product.Name;
+        _model.Description = product.Description;
+        _model.Category = product.Category;
+        _category = product.Category;
+        _model.Price = product.Price;
+        _model.Stock = product.Stock;
+        _model.Unit = product.Unit;
+        _model.ImagePath = product.ImagePath;
+        _model.IsActive = product.IsActive;
+    }
+
+    private async Task OnFile(InputFileChangeEventArgs args)
+    {
+        await using var stream = args.File.OpenReadStream(5 * 1024 * 1024);
+        _model.ImagePath = await Images.SaveAsync(stream, args.File.Name);
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        _model.Category = _category;
+        try
+        {
+            if (Id is null)
+            {
+                await Products.CreateAsync(_model);
+            }
+            else
+            {
+                _model.Id = Id.Value;
+                await Products.UpdateAsync(_model);
+            }
+
+            Navigation.NavigateTo("/admin/products");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            _busy = false;
+        }
+    }
+}

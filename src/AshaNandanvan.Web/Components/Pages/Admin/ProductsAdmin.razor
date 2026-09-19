@@ -1,0 +1,52 @@
+@page "/admin/products"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IProductService Products
+
+<PageTitle>Products — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell section-head">
+        <div>
+            <p class="eyebrow">Admin</p>
+            <h1>Products</h1>
+        </div>
+        <a class="btn btn--solid" href="/admin/products/edit">Add product</a>
+    </div>
+</section>
+
+<section class="shell">
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Stock</th>
+                <th>Active</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var product in _products)
+            {
+                <tr>
+                    <td>@product.Name</td>
+                    <td>@CatalogFormatting.CategoryName(product.Category)</td>
+                    <td>@CatalogFormatting.Money(product.Price)</td>
+                    <td>@product.Stock @product.Unit</td>
+                    <td>@(product.IsActive ? "Yes" : "No")</td>
+                    <td><a class="text-link" href="/admin/products/edit/@product.Id">Edit</a></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
+@code {
+    private IReadOnlyList<ProductListItem> _products = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _products = await Products.GetAllAsync();
+    }
+}

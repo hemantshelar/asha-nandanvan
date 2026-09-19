@@ -1,0 +1,45 @@
+@page "/how-we-live"
+@inject IOptions<StoreOptions> StoreAccessor
+
+<PageTitle>How we live — @Store.Name</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">A Sydney backyard</p>
+        <h1>How we live the loop</h1>
+        <p class="lede">A small closed loop: hens, worms, beds, and a kitchen that tries not to waste.</p>
+    </div>
+</section>
+
+<section class="shell prose-page">
+    <article>
+        <h2>Worm composting</h2>
+        <p>
+            Kitchen scraps and garden trimmings go to the worm bins first. The worms turn them into
+            castings we call black gold — dark, sweet-smelling soil that goes straight back into the beds.
+            We also raise extra colonies so you can start a bin at home.
+        </p>
+    </article>
+    <article>
+        <h2>Chickens</h2>
+        <p>
+            The hens eat what the worms cannot, scratch the paths, and give us eggs. Their manure is
+            composted before it ever touches a salad bed. Nothing from the flock is treated as rubbish.
+        </p>
+    </article>
+    <article>
+        <h2>What grows stays</h2>
+        <p>
+            Seed, soil, and surplus all stay in this backyard unless a neighbour collects them.
+            We do not ship produce. Pickup is in @Store.City, during @Store.PickupHours.
+        </p>
+        <p>
+            If you want the day-to-day of the garden, the <a href="@Store.FacebookUrl" target="_blank" rel="noreferrer">Facebook page</a>
+            is where we share what is hatching, wriggling, and ripening.
+        </p>
+    </article>
+</section>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+}

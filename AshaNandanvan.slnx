@@ -1,0 +1,8 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/AshaNandanvan.Application/AshaNandanvan.Application.csproj" />
+    <Project Path="src/AshaNandanvan.Domain/AshaNandanvan.Domain.csproj" />
+    <Project Path="src/AshaNandanvan.Infrastructure/AshaNandanvan.Infrastructure.csproj" />
+    <Project Path="src/AshaNandanvan.Web/AshaNandanvan.Web.csproj" />
+  </Folder>
+</Solution>

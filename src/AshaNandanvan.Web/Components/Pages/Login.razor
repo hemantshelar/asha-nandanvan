@@ -1,0 +1,51 @@
+@page "/account/login"
+@attribute [AllowAnonymous]
+@inject IOptions<GoogleAuthOptions> Google
+@inject IOptions<StoreOptions> Store
+@inject NavigationManager Navigation
+
+<PageTitle>Sign in — @Store.Value.Name</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Your account</p>
+        <h1>Sign in with Google</h1>
+        <p class="lede">We use your Google account only — no extra password to remember.</p>
+    </div>
+</section>
+
+<section class="shell login-panel">
+    @if (!string.IsNullOrEmpty(_error))
+    {
+        <p class="banner">@_error</p>
+    }
+
+    @if (Google.Value.IsConfigured)
+    {
+        <a class="btn btn--solid" href="@GoogleHref">Continue with Google</a>
+    }
+    else
+    {
+        <p>Google sign-in is not configured yet. Add <code>GoogleAuth:ClientId</code> and <code>ClientSecret</code> to user secrets, then restart the app.</p>
+        <p class="muted">Authorized redirect URI: <code>https://localhost:7095/signin-google</code></p>
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
+    [SupplyParameterFromQuery] public string? Error { get; set; }
+    private string? _error;
+    private string GoogleHref => $"/account/google-login?returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl)}";
+
+    protected override void OnInitialized()
+    {
+        _error = Error switch
+        {
+            "google" => "Google did not complete sign-in. Please try again.",
+            "email" => "Your Google account did not share an email address.",
+            "create" => "We could not create your account.",
+            "not-configured" => "Google sign-in is not configured on this server.",
+            _ => null
+        };
+    }
+}

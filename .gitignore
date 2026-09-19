@@ -1,0 +1,31 @@
+## .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+[Dd]ebug/
+[Rr]elease/
+artifacts/
+*.log
+
+## Secrets and local env
+appsettings.*.local.json
+*.pfx
+secrets.json
+
+## Uploads (keep folder, ignore user files)
+src/AshaNandanvan.Web/wwwroot/uploads/*
+!src/AshaNandanvan.Web/wwwroot/uploads/.gitkeep
+
+## IDE
+.vs/
+.idea/
+*.rsuser
+.vscode/*
+
+## OS
+Thumbs.db
+Desktop.ini
+.DS_Store

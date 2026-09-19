@@ -1,0 +1,141 @@
+@page "/checkout"
+@attribute [Authorize]
+@inject ICartService Cart
+@inject IOrderService Orders
+@inject IPaymentProvider Payment
+@inject IOptions<StoreOptions> StoreAccessor
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Checkout — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Sydney pickup only</p>
+        <h1>Checkout</h1>
+        <p class="lede">Pay now, then collect from our backyard. We do not deliver.</p>
+    </div>
+</section>
+
+<section class="shell checkout">
+    @if (_cancelled)
+    {
+        <p class="banner">Payment was cancelled. Your basket is still here.</p>
+    }
+
+    @if (_cart.IsEmpty)
+    {
+        <p>Your basket is empty.</p>
+        <a class="btn btn--solid" href="/shop">Back to the shop</a>
+    }
+    else
+    {
+        <div class="checkout__grid">
+            <form @onsubmit="PlaceOrderAsync" @onsubmit:preventDefault>
+                <label>
+                    Name
+                    <input @bind="_request.CustomerName" required />
+                </label>
+                <label>
+                    Email
+                    <input type="email" @bind="_request.CustomerEmail" required />
+                </label>
+                <label>
+                    Phone (optional)
+                    <input @bind="_request.Phone" />
+                </label>
+                <label>
+                    Pickup date
+                    <input type="date" value="@_request.PickupDate.ToString("yyyy-MM-dd")" @onchange="OnDate" min="@DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd")" required />
+                </label>
+                <label>
+                    Pickup window
+                    <select @bind="_request.PickupWindow">
+                        @foreach (var window in Store.PickupWindows)
+                        {
+                            <option value="@window">@window</option>
+                        }
+                    </select>
+                </label>
+                <p class="muted">@Store.PickupAddress</p>
+                <p class="muted">Paying with @Payment.Name. @(Payment.Name == "Mock" ? "Stripe keys are not set, so this demo will mark the order paid immediately." : "You will finish on the secure Stripe page.")</p>
+                <button class="btn btn--solid" type="submit" disabled="@_busy">@_payLabel</button>
+            </form>
+            <aside class="panel">
+                <h2>Order</h2>
+                @foreach (var line in _cart.Items)
+                {
+                    <p>@line.Quantity × @line.Name <span>@CatalogFormatting.Money(line.LineTotal)</span></p>
+                }
+                <p class="total">Total @CatalogFormatting.Money(_cart.Total)</p>
+            </aside>
+        </div>
+    }
+</section>
+
+@code {
+    private CartSnapshot _cart = new([]);
+    private readonly CheckoutRequest _request = new();
+    private bool _busy;
+    private bool _cancelled;
+    private string _payLabel = "Pay and reserve pickup";
+    private StoreOptions Store => StoreAccessor.Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        _cancelled = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(uri.Query).ContainsKey("cancelled");
+
+        var state = await Auth.GetAuthenticationStateAsync();
+        _request.CustomerEmail = state.User.Identity?.Name ?? string.Empty;
+        _request.CustomerName = state.User.Identity?.Name?.Split('@')[0] ?? string.Empty;
+        _request.PickupDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
+        _request.PickupWindow = Store.PickupWindows.FirstOrDefault() ?? Store.PickupHours;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await Cart.MergeGuestCartAsync();
+            _cart = await Cart.GetAsync();
+            StateHasChanged();
+        }
+    }
+
+    private void OnDate(ChangeEventArgs e)
+    {
+        if (DateOnly.TryParse(e.Value?.ToString(), out var date))
+        {
+            _request.PickupDate = date;
+        }
+    }
+
+    private async Task PlaceOrderAsync()
+    {
+        _busy = true;
+        try
+        {
+            var state = await Auth.GetAuthenticationStateAsync();
+            var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? throw new InvalidOperationException("Please sign in again.");
+
+            var order = await Orders.CreatePendingOrderAsync(userId, _request);
+            var payment = await Payment.CreatePaymentAsync(new PaymentRequest(
+                order.OrderNumber,
+                order.CustomerEmail,
+                $"Asha Nandanvan pickup {order.OrderNumber}",
+                order.Total,
+                Store.Currency,
+                order.Items.Select(i => new PaymentLine($"{i.ProductName} ({i.Unit})", i.Quantity, i.UnitPrice)).ToList()));
+
+            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            _busy = false;
+        }
+    }
+}

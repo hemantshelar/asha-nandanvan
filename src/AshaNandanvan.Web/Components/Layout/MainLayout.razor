@@ -1,0 +1,138 @@
+﻿@inherits LayoutComponentBase
+@inject IOptions<StoreOptions> Store
+@inject ICartService Cart
+@inject NavigationManager Navigation
+@implements IDisposable
+
+<MudThemeProvider Theme="_theme" IsDarkMode="true" />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<div class="site">
+    <header class="topbar">
+        <div class="shell topbar__inner">
+            <a class="brand" href="/">
+                <span class="brand__mark" aria-hidden="true"></span>
+                <span class="brand__text">
+                    <strong>@Store.Value.Name</strong>
+                    <small>Sydney backyard</small>
+                </span>
+            </a>
+
+            <nav class="nav nav--desktop" aria-label="Primary">
+                <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
+                <NavLink href="/how-we-live">How we live</NavLink>
+                <NavLink href="/shop">Shop</NavLink>
+                <NavLink href="/visit">Visit</NavLink>
+                <AuthorizeView Roles="@AppRoles.Admin">
+                    <NavLink href="/admin/products">Admin</NavLink>
+                </AuthorizeView>
+            </nav>
+
+            <div class="topbar__actions">
+                <a class="icon-link" href="/cart" aria-label="Basket">
+                    <MudIcon Icon="@Icons.Material.Filled.ShoppingBasket" />
+                    @if (_cartCount > 0)
+                    {
+                        <span class="badge">@_cartCount</span>
+                    }
+                </a>
+                <AuthorizeView>
+                    <Authorized>
+                        <span class="who">@context.User.Identity?.Name</span>
+                        <a class="text-link" href="/account/logout">Sign out</a>
+                    </Authorized>
+                    <NotAuthorized>
+                        <a class="btn btn--solid" href="@LoginHref">Sign in</a>
+                    </NotAuthorized>
+                </AuthorizeView>
+                <button type="button" class="menu-toggle" @onclick="ToggleMenu" aria-label="Open menu">
+                    <MudIcon Icon="@(_menuOpen ? Icons.Material.Filled.Close : Icons.Material.Filled.Menu)" />
+                </button>
+            </div>
+        </div>
+
+        @if (_menuOpen)
+        {
+            <div class="nav-sheet" @onclick="CloseMenu">
+                <nav class="nav nav--mobile" aria-label="Mobile">
+                    <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
+                    <NavLink href="/how-we-live" @onclick="CloseMenu">How we live</NavLink>
+                    <NavLink href="/shop" @onclick="CloseMenu">Shop</NavLink>
+                    <NavLink href="/visit" @onclick="CloseMenu">Visit</NavLink>
+                    <AuthorizeView Roles="@AppRoles.Admin">
+                        <NavLink href="/admin/products" @onclick="CloseMenu">Admin</NavLink>
+                    </AuthorizeView>
+                </nav>
+            </div>
+        }
+    </header>
+
+    @if (IsAdminSection)
+    {
+        <div class="admin-tabs">
+            <div class="shell admin-tabs__inner">
+                <NavLink href="/admin/products">Products</NavLink>
+                <NavLink href="/admin/orders">Orders</NavLink>
+            </div>
+        </div>
+    }
+
+    <main class="main">
+        @Body
+    </main>
+
+    <footer class="footer">
+        <div class="shell footer__grid">
+            <div>
+                <p class="footer__name">@Store.Value.Name</p>
+                <p>@Store.Value.Tagline</p>
+            </div>
+            <div>
+                <p>Pickup in @Store.Value.City</p>
+                <p>@Store.Value.PickupHours</p>
+            </div>
+            <div>
+                <a href="@Store.Value.FacebookUrl" target="_blank" rel="noreferrer">Facebook</a>
+                <a href="/shop">Shop the backyard</a>
+            </div>
+        </div>
+    </footer>
+</div>
+
+@code {
+    private int _cartCount;
+    private bool _menuOpen;
+    private readonly MudTheme _theme = ThemeFactory.Create();
+
+    private bool IsAdminSection => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin", StringComparison.OrdinalIgnoreCase);
+    private string LoginHref => $"/account/login?returnUrl=/{Navigation.ToBaseRelativePath(Navigation.Uri)}";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            Cart.Changed += OnCartChanged;
+            await RefreshCartAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async void OnCartChanged()
+    {
+        await RefreshCartAsync();
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task RefreshCartAsync()
+    {
+        var snapshot = await Cart.GetAsync();
+        _cartCount = snapshot.ItemCount;
+    }
+
+    private void ToggleMenu() => _menuOpen = !_menuOpen;
+    private void CloseMenu() => _menuOpen = false;
+
+    public void Dispose() => Cart.Changed -= OnCartChanged;
+}

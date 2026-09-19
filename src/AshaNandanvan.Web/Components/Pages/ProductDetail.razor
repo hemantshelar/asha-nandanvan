@@ -1,0 +1,67 @@
+@page "/shop/{Slug}"
+@inject IProductService Products
+@inject ICartService Cart
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>@(_product?.Name ?? "Product") — Asha Nandanvan</PageTitle>
+
+@if (_product is null)
+{
+    <section class="shell">
+        <p>We could not find that item.</p>
+        <a href="/shop">Back to the shop</a>
+    </section>
+}
+else
+{
+    <section class="shell product-detail">
+        <img class="product-detail__image" src="@_product.ImagePath" alt="@_product.Name" />
+        <div>
+            <p class="eyebrow">@CatalogFormatting.CategoryName(_product.Category)</p>
+            <h1>@_product.Name</h1>
+            <p class="lede">@_product.Description</p>
+            <p class="price">@CatalogFormatting.Money(_product.Price) <span>/ @_product.Unit</span></p>
+            <p class="muted">@_product.Stock in the backyard this week</p>
+            <div class="qty-row">
+                <MudNumericField @bind-Value="_quantity" Min="1" Max="@Math.Max(1, _product.Stock)" HideSpinButtons="false" Variant="Variant.Outlined" />
+                <button class="btn btn--solid" disabled="@(_product.Stock <= 0)" @onclick="AddAsync">
+                    Add to basket
+                </button>
+            </div>
+        </div>
+    </section>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    private ProductListItem? _product;
+    private int _quantity = 1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _product = await Products.GetBySlugAsync(Slug);
+        if (_product is null)
+        {
+            Navigation.NavigateTo("/not-found");
+        }
+    }
+
+    private async Task AddAsync()
+    {
+        if (_product is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Cart.AddAsync(_product.Id, _quantity);
+            Snackbar.Add($"{_product.Name} added to your basket.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+}

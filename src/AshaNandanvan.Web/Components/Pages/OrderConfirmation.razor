@@ -1,0 +1,59 @@
+@page "/checkout/confirmation/{OrderNumber}"
+@attribute [Authorize]
+@inject IOrderService Orders
+@inject IPaymentProvider Payment
+@inject IOptions<StoreOptions> StoreAccessor
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+
+<PageTitle>Order @OrderNumber — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Thank you</p>
+        <h1>Pickup reserved</h1>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_order is null)
+    {
+        <p>We could not find that order.</p>
+    }
+    else
+    {
+        <article class="panel">
+            <p>Order <strong>@_order.OrderNumber</strong></p>
+            <p>Status: @_order.Status</p>
+            <p>Collect on @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
+            <p>@Store.PickupAddress</p>
+            <p>We will share the exact backyard gate after payment is confirmed.</p>
+            <ul>
+                @foreach (var line in _order.Items)
+                {
+                    <li>@line.Quantity × @line.ProductName — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)</li>
+                }
+            </ul>
+            <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+        </article>
+    }
+</section>
+
+@code {
+    [Parameter] public string OrderNumber { get; set; } = string.Empty;
+    private OrderSummary? _order;
+    private StoreOptions Store => StoreAccessor.Value;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var sessionId = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(Navigation.ToAbsoluteUri(Navigation.Uri).Query)
+            .TryGetValue("session_id", out var value) ? value.ToString() : null;
+
+        await Payment.ConfirmReturnAsync(OrderNumber, sessionId);
+
+        var state = await Auth.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        var isAdmin = state.User.IsInRole(AppRoles.Admin);
+        _order = await Orders.GetByNumberAsync(OrderNumber, userId, isAdmin);
+    }
+}

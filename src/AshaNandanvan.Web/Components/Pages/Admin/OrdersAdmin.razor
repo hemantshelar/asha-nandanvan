@@ -1,0 +1,73 @@
+@page "/admin/orders"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IOrderService Orders
+@inject ISnackbar Snackbar
+
+<PageTitle>Orders — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>Orders</h1>
+    </div>
+</section>
+
+<section class="shell">
+    <table class="cart-table">
+        <thead>
+            <tr>
+                <th>Order</th>
+                <th>Customer</th>
+                <th>Pickup</th>
+                <th>Total</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var order in _orders)
+            {
+                <tr>
+                    <td>@order.OrderNumber</td>
+                    <td>@order.CustomerName<br /><span class="muted">@order.CustomerEmail</span></td>
+                    <td>@order.PickupDate.ToString("ddd d MMM") · @order.PickupWindow</td>
+                    <td>@CatalogFormatting.Money(order.Total)</td>
+                    <td>
+                        <select value="@order.Status" @onchange="e => ChangeStatusAsync(order, e)">
+                            @foreach (var status in Enum.GetValues<OrderStatus>())
+                            {
+                                <option value="@status">@status</option>
+                            }
+                        </select>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</section>
+
+@code {
+    private IReadOnlyList<OrderSummary> _orders = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        _orders = await Orders.GetAllAsync();
+    }
+
+    private async Task ChangeStatusAsync(OrderSummary order, ChangeEventArgs args)
+    {
+        if (!Enum.TryParse<OrderStatus>(args.Value?.ToString(), out var status))
+        {
+            return;
+        }
+
+        try
+        {
+            await Orders.UpdateStatusAsync(order.Id, status);
+            _orders = await Orders.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}

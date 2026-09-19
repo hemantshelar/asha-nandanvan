@@ -1,0 +1,39 @@
+@page "/visit"
+@inject IOptions<StoreOptions> StoreAccessor
+
+<PageTitle>Visit &amp; pickup — @Store.Name</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Sydney pickup only</p>
+        <h1>Visit the backyard</h1>
+        <p class="lede">We do not deliver. Paid orders are collected from our Sydney backyard in an agreed window.</p>
+    </div>
+</section>
+
+<section class="shell visit-grid">
+    <article class="panel">
+        <h2>Pickup</h2>
+        <p>@Store.PickupAddress</p>
+        <p><strong>Hours:</strong> @Store.PickupHours</p>
+        <p>Windows you can choose at checkout:</p>
+        <ul>
+            @foreach (var window in Store.PickupWindows)
+            {
+                <li>@window</li>
+            }
+        </ul>
+    </article>
+    <article class="panel">
+        <h2>After you order</h2>
+        <p>
+            Once payment is confirmed we share the exact gate details and any notes for that weekend.
+            Please bring your own bags if you can — we prefer not to add packaging that leaves the loop.
+        </p>
+        <a class="btn btn--solid" href="/shop">Order for pickup</a>
+    </article>
+</section>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+}

@@ -1,0 +1,39 @@
+@inject ICartService Cart
+@inject ISnackbar Snackbar
+
+<article class="product-card">
+    <a class="product-card__media" href="/shop/@Product.Slug">
+        <img src="@Product.ImagePath" alt="@Product.Name" />
+        <span class="product-card__date">@CatalogFormatting.CategoryName(Product.Category)</span>
+    </a>
+    <div class="product-card__body">
+        <h3><a href="/shop/@Product.Slug">@Product.Name</a></h3>
+        <p class="muted">@Product.Description</p>
+        <div class="product-card__footer">
+            <div class="product-card__meta">
+                <strong>@CatalogFormatting.Money(Product.Price)</strong>
+                <span>/ @Product.Unit</span>
+            </div>
+            <button class="btn btn--solid" disabled="@(Product.Stock <= 0)" @onclick="AddAsync">
+                @(Product.Stock <= 0 ? "Sold out" : "Add to basket")
+            </button>
+        </div>
+    </div>
+</article>
+
+@code {
+    [Parameter, EditorRequired] public ProductListItem Product { get; set; } = default!;
+
+    private async Task AddAsync()
+    {
+        try
+        {
+            await Cart.AddAsync(Product.Id);
+            Snackbar.Add($"{Product.Name} added to your basket.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+}

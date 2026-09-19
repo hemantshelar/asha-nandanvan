@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 640" role="img" aria-hidden="true">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2a1c"/>
+      <stop offset="1" stop-color="#0c120e"/>
+    </linearGradient>
+  </defs>
+    <rect width="800" height="640" fill="#121812"/>
+  <ellipse cx="400" cy="560" rx="360" ry="90" fill="#3d6b4f"/>
+  <ellipse cx="180" cy="500" rx="140" ry="50" fill="#1f3d32"/>
+  <rect x="470" y="250" width="170" height="150" rx="8" fill="#c45c3e"/>
+  <polygon points="450,250 555,170 655,250" fill="#4a3426"/>
+  <circle cx="620" cy="150" r="46" fill="#e8c56b"/>
+  <rect x="120" y="360" width="18" height="140" fill="#6b4a2b"/>
+  <circle cx="110" cy="340" r="40" fill="#3d6b4f"/>
+  <circle cx="155" cy="330" r="48" fill="#2f5a42"/>
+  <circle cx="280" cy="420" r="18" fill="#f3d9a4" stroke="#c45c3e" stroke-width="3"/>
+  <circle cx="312" cy="428" r="16" fill="#f7e7c2" stroke="#c45c3e" stroke-width="3"/>
+  <path d="M210 470 q20 -40 50 -10 q10 20 -8 28 q-30 8 -42 -18z" fill="#f4ead8" stroke="#2a2622" stroke-width="3"/>
+  <path d="M330 490 q30 -50 70 -12 q8 22 -12 30 q-40 10 -58 -18z" fill="#fffaf2" stroke="#2a2622" stroke-width="3"/>
+  <ellipse cx="560" cy="500" rx="70" ry="22" fill="#4a3426"/>
+  <path d="M520 500 q20 -40 50 -8" stroke="#c4a15a" stroke-width="8" fill="none"/>
+</svg>
