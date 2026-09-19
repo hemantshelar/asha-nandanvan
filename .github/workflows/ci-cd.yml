@@ -64,17 +64,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Check Azure OIDC secrets
+      - name: Check Azure login secrets
         env:
           CLIENT: ${{ secrets.AZURE_CLIENT_ID }}
           TENANT: ${{ secrets.AZURE_TENANT_ID }}
           SUB: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
         run: |
           echo "AZURE_CLIENT_ID length=${#CLIENT} (expect 36)"
           echo "AZURE_TENANT_ID length=${#TENANT} (expect 36)"
           echo "AZURE_SUBSCRIPTION_ID length=${#SUB} (expect 36)"
-          if [ ${#CLIENT} -ne 36 ] || [ ${#TENANT} -ne 36 ] || [ ${#SUB} -ne 36 ]; then
-            echo "One or more Azure IDs are missing or have extra spaces. Re-save the dev environment secrets."
+          echo "AZURE_CLIENT_SECRET length=${#SECRET} (must not be 0)"
+          if [ ${#CLIENT} -ne 36 ] || [ ${#TENANT} -ne 36 ] || [ ${#SUB} -ne 36 ] || [ ${#SECRET} -eq 0 ]; then
+            echo "Add AZURE_CLIENT_SECRET on environment dev, and keep the three Azure IDs at 36 characters."
             exit 1
           fi
 
@@ -82,10 +84,13 @@ jobs:
         id: azure-login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
 
       - name: What-if
         env:
@@ -182,10 +187,13 @@ jobs:
       - name: Azure login
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-          client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
+          creds: |
+            {
+              "clientId": "${{ secrets.AZURE_CLIENT_ID }}",
+              "clientSecret": "${{ secrets.AZURE_CLIENT_SECRET }}",
+              "subscriptionId": "${{ secrets.AZURE_SUBSCRIPTION_ID }}",
+              "tenantId": "${{ secrets.AZURE_TENANT_ID }}"
+            }
 
       - name: Deploy to App Service
         uses: azure/webapps-deploy@v3
