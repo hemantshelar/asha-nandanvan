@@ -4,6 +4,7 @@
 @inject IOrderService Orders
 @inject IPaymentProvider Payment
 @inject IOptions<StoreOptions> StoreAccessor
+@inject IOptions<PaymentOptions> PaymentAccessor
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -59,8 +60,12 @@
                     </select>
                 </label>
                 <p class="muted">@Store.PickupAddress</p>
-                <p class="muted">Paying with @Payment.Name. @(Payment.Name == "Mock" ? "Stripe keys are not set, so this demo will mark the order paid immediately." : "You will finish on the secure Stripe page.")</p>
-                <button class="btn btn--solid" type="submit" disabled="@_busy">@_payLabel</button>
+                @if (_needsSquareKeys)
+                {
+                    <p class="banner">Square sandbox keys are missing. Add Payment:Square:AccessToken and Payment:Square:LocationId to user secrets, then restart.</p>
+                }
+                <p class="muted">@_paymentHint</p>
+                <button class="btn btn--solid" type="submit" disabled="@(_busy || _needsSquareKeys)">@_payLabel</button>
             </form>
             <aside class="panel">
                 <h2>Order</h2>
@@ -81,6 +86,18 @@
     private bool _cancelled;
     private string _payLabel = "Pay and reserve pickup";
     private StoreOptions Store => StoreAccessor.Value;
+    private bool _needsSquareKeys =>
+        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
+        && !PaymentAccessor.Value.Square.IsConfigured;
+    private string _paymentHint => _needsSquareKeys
+        ? "Square sandbox cannot start until AccessToken and LocationId are set."
+        : Payment.Name switch
+        {
+            "Mock" => "Payment keys are not set, so this demo will mark the order paid immediately.",
+            "Square (sandbox)" => "You will pay on Square sandbox. Use test card 4111 1111 1111 1111, any future expiry, any CVV, any postcode.",
+            "Square" => "You will finish on the secure Square checkout page.",
+            _ => "You will finish on the secure payment page."
+        };
 
     protected override async Task OnInitializedAsync()
     {
@@ -98,7 +115,6 @@
     {
         if (firstRender)
         {
-            await Cart.MergeGuestCartAsync();
             _cart = await Cart.GetAsync();
             StateHasChanged();
         }

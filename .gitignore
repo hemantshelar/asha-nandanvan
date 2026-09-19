@@ -10,6 +10,9 @@ obj/
 artifacts/
 *.log
 
+## Compiled Bicep
+infra/*.json
+
 ## Secrets and local env
 appsettings.*.local.json
 *.pfx

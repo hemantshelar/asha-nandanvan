@@ -11,13 +11,14 @@ namespace AshaNandanvan.Infrastructure.Products;
 
 public sealed class ProductService : IProductService
 {
-    private readonly AppDbContext _db;
+    private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
-    public ProductService(AppDbContext db) => _db = db;
+    public ProductService(IDbContextFactory<AppDbContext> dbFactory) => _dbFactory = dbFactory;
 
     public async Task<IReadOnlyList<ProductListItem>> GetActiveAsync(ProductCategory? category = null, CancellationToken cancellationToken = default)
     {
-        var query = _db.Products.AsNoTracking().Where(p => p.IsActive);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var query = db.Products.AsNoTracking().Where(p => p.IsActive);
         if (category is not null)
         {
             query = query.Where(p => p.Category == category);
@@ -29,7 +30,8 @@ public sealed class ProductService : IProductService
 
     public async Task<IReadOnlyList<ProductListItem>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        var products = await _db.Products.AsNoTracking()
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var products = await db.Products.AsNoTracking()
             .OrderBy(p => p.Category).ThenBy(p => p.Name)
             .ToListAsync(cancellationToken);
         return products.Select(ToListItem).ToList();
@@ -37,23 +39,26 @@ public sealed class ProductService : IProductService
 
     public async Task<ProductListItem?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default)
     {
-        var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == slug, cancellationToken);
         return product is null ? null : ToListItem(product);
     }
 
     public async Task<ProductListItem?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
     {
-        var product = await _db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
         return product is null ? null : ToListItem(product);
     }
 
     public async Task<int> CreateAsync(ProductEditModel model, CancellationToken cancellationToken = default)
     {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var now = DateTimeOffset.UtcNow;
         var product = new Product
         {
             Name = model.Name.Trim(),
-            Slug = await UniqueSlugAsync(model.Name, null, cancellationToken),
+            Slug = await UniqueSlugAsync(db, model.Name, null, cancellationToken),
             Description = model.Description.Trim(),
             Category = model.Category,
             Price = model.Price,
@@ -65,18 +70,19 @@ public sealed class ProductService : IProductService
             UpdatedAt = now
         };
 
-        _db.Products.Add(product);
-        await _db.SaveChangesAsync(cancellationToken);
+        db.Products.Add(product);
+        await db.SaveChangesAsync(cancellationToken);
         return product.Id;
     }
 
     public async Task UpdateAsync(ProductEditModel model, CancellationToken cancellationToken = default)
     {
-        var product = await _db.Products.FirstOrDefaultAsync(p => p.Id == model.Id, cancellationToken)
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == model.Id, cancellationToken)
             ?? throw new InvalidOperationException("Product was not found.");
 
         product.Name = model.Name.Trim();
-        product.Slug = await UniqueSlugAsync(model.Name, product.Id, cancellationToken);
+        product.Slug = await UniqueSlugAsync(db, model.Name, product.Id, cancellationToken);
         product.Description = model.Description.Trim();
         product.Category = model.Category;
         product.Price = model.Price;
@@ -86,15 +92,15 @@ public sealed class ProductService : IProductService
         product.IsActive = model.IsActive;
         product.UpdatedAt = DateTimeOffset.UtcNow;
 
-        await _db.SaveChangesAsync(cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    private async Task<string> UniqueSlugAsync(string name, int? existingId, CancellationToken cancellationToken)
+    private static async Task<string> UniqueSlugAsync(AppDbContext db, string name, int? existingId, CancellationToken cancellationToken)
     {
         var slug = Slugify(name);
         var candidate = slug;
         var suffix = 2;
-        while (await _db.Products.AnyAsync(p => p.Slug == candidate && p.Id != existingId, cancellationToken))
+        while (await db.Products.AnyAsync(p => p.Slug == candidate && p.Id != existingId, cancellationToken))
         {
             candidate = $"{slug}-{suffix++}";
         }

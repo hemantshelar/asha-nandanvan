@@ -8,6 +8,7 @@ using AshaNandanvan.Application.Storage;
 using AshaNandanvan.Infrastructure;
 using AshaNandanvan.Infrastructure.Data;
 using AshaNandanvan.Infrastructure.Identity;
+using AshaNandanvan.Infrastructure.Payments;
 using AshaNandanvan.Web.Components;
 using AshaNandanvan.Web.Endpoints;
 using AshaNandanvan.Web.Services;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using MudBlazor.Services;
 
 var culture = new CultureInfo("en-AU");
@@ -76,9 +78,19 @@ var app = builder.Build();
 
 await using (var scope = app.Services.CreateAsyncScope())
 {
-    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await using var db = await scope.ServiceProvider
+        .GetRequiredService<IDbContextFactory<AppDbContext>>()
+        .CreateDbContextAsync();
     await db.Database.MigrateAsync();
     await scope.ServiceProvider.GetRequiredService<DatabaseSeeder>().SeedAsync();
+
+    var payment = scope.ServiceProvider.GetRequiredService<IOptions<PaymentOptions>>().Value;
+    var squareStatus = await scope.ServiceProvider.GetRequiredService<SquarePaymentProvider>().VerifyConfigurationAsync();
+    app.Logger.LogInformation(
+        "Payments: provider={Provider}, sandbox={Sandbox}. {SquareStatus}",
+        payment.Provider,
+        payment.Square.UseSandbox,
+        squareStatus);
 }
 
 if (!app.Environment.IsDevelopment())
