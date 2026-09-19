@@ -27,7 +27,23 @@ On first run the app also applies migrations and seeds sample products.
 
 ## Configuration (`IOptions`)
 
-Set these in user secrets or `appsettings.Development.json` (do not commit real keys):
+The host loads every source that exists. **A later source wins** for the same key:
+
+1. `appsettings.json` — committed defaults
+2. `appsettings.{Environment}.json` — e.g. `appsettings.Development.json` (optional)
+3. `secrets.json` in the Web project folder, then .NET User Secrets (`%APPDATA%\Microsoft\UserSecrets\...`) (optional)
+4. Environment variables (and command-line args last)
+
+Missing files are skipped. `IOptions<T>` reads the merged result.
+
+Examples:
+
+```powershell
+$env:GoogleAuth__ClientId = "..."
+$env:ConnectionStrings__DefaultConnection = "Server=..."
+```
+
+Set local secrets (do not commit real keys):
 
 ```powershell
 cd src/AshaNandanvan.Web

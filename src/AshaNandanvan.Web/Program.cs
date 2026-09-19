@@ -1,5 +1,6 @@
 using System.Globalization;
 using AshaNandanvan.Application;
+using AshaNandanvan.Application.Configuration;
 using AshaNandanvan.Application.Cart;
 using AshaNandanvan.Application.Common;
 using AshaNandanvan.Application.Options;
@@ -21,6 +22,13 @@ CultureInfo.DefaultThreadCurrentCulture = culture;
 CultureInfo.DefaultThreadCurrentUICulture = culture;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.Configuration.Sources.Clear();
+builder.Configuration.AddAshaNandanvanSources(
+    builder.Environment.ContentRootPath,
+    builder.Environment.EnvironmentName,
+    args,
+    typeof(Program).Assembly);
 
 builder.Services.AddApplication(builder.Configuration);
 builder.Services.AddInfrastructure(builder.Configuration);
