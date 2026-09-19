@@ -22,7 +22,8 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
-        services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContextFactory<AppDbContext>(options =>
+            options.UseSqlServer(connectionString, sql => sql.EnableRetryOnFailure(5)));
         services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
         services

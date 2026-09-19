@@ -66,3 +66,30 @@ The first Google account that matches `Admin:SeedEmail` is promoted to Admin and
 `Payment:Provider` is `Square`. Checkout redirects to Square hosted checkout. After you pay, Square returns to `/checkout/confirmation/{orderNumber}` and the app marks the order paid. Localhost cannot receive Square webhooks, so that return confirmation is the paid path.
 
 Square sandbox test card: `4111 1111 1111 1111`, any future expiry, any CVV, any postcode.
+
+## CI/CD (GitHub Actions + Azure)
+
+Pushes to `feature/002-squre-pay` build the site, upload a web artifact, deploy Bicep to Azure, then zip-deploy the app. Pull requests only build.
+
+| Azure resource | Name |
+|---|---|
+| Resource group | `ashanandanvan-dev` |
+| App Service plan | `plan-ashanandanvan-dev` (F1 Free, Linux) |
+| Web app | `app-ashanandanvan-dev` |
+| Application Insights | `appi-ashanandanvan-dev` |
+| Log Analytics | `law-ashanandanvan-dev` |
+| SQL database | `ashanandanvan-dev` on existing server `invitation.database.windows.net` |
+
+The SQL **server** is not created. The new database stays in `invitation-web-group` because that is where the server lives.
+
+F1 cannot bind `ashanandanvan.com.au` or keep the site always on. Use `https://app-ashanandanvan-dev.azurewebsites.net` until you move to Basic (B1).
+
+### One-time Azure + GitHub setup
+
+1. `az login`
+2. Run `infra/scripts/setup-github-oidc.ps1`
+3. In GitHub: **Settings → Environments → New environment → `dev`**
+4. Add the variables and secrets the script prints (Azure IDs, SQL admin group, Google, Square, admin email)
+5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
+
+The script creates Entra group `ashanandanvan-sql-admins-dev` (you + the GitHub app) and Bicep sets that group as the SQL Entra admin so the pipeline can grant the web app's managed identity `db_owner`.
