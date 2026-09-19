@@ -22,7 +22,8 @@ public static class DependencyInjection
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is missing.");
 
-        services.AddDbContext<AppDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddDbContextFactory<AppDbContext>(options => options.UseSqlServer(connectionString));
+        services.AddScoped(sp => sp.GetRequiredService<IDbContextFactory<AppDbContext>>().CreateDbContext());
 
         services
             .AddIdentityCore<ApplicationUser>(options =>
@@ -39,15 +40,22 @@ public static class DependencyInjection
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<DatabaseSeeder>();
         services.AddScoped<StripePaymentProvider>();
+        services.AddScoped<SquarePaymentProvider>();
         services.AddScoped<MockPaymentProvider>();
         services.AddScoped<IPaymentProvider>(sp =>
         {
             var payment = sp.GetRequiredService<IOptions<PaymentOptions>>().Value;
-            var useStripe = payment.Provider.Equals("Stripe", StringComparison.OrdinalIgnoreCase)
-                && payment.Stripe.IsConfigured;
-            return useStripe
-                ? sp.GetRequiredService<StripePaymentProvider>()
-                : sp.GetRequiredService<MockPaymentProvider>();
+            if (payment.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase))
+            {
+                return sp.GetRequiredService<SquarePaymentProvider>();
+            }
+
+            if (payment.Provider.Equals("Stripe", StringComparison.OrdinalIgnoreCase) && payment.Stripe.IsConfigured)
+            {
+                return sp.GetRequiredService<StripePaymentProvider>();
+            }
+
+            return sp.GetRequiredService<MockPaymentProvider>();
         });
 
         return services;

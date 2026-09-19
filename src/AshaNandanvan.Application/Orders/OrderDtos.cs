@@ -22,7 +22,8 @@ public sealed record OrderSummary(
     string CustomerEmail,
     string? Phone,
     DateTimeOffset CreatedAt,
-    IReadOnlyList<OrderLineSummary> Items);
+    IReadOnlyList<OrderLineSummary> Items,
+    string? PaymentReference = null);
 
 public sealed record OrderLineSummary(
     string ProductName,

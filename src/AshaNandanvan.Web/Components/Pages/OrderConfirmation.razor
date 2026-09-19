@@ -46,8 +46,8 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var sessionId = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(Navigation.ToAbsoluteUri(Navigation.Uri).Query)
-            .TryGetValue("session_id", out var value) ? value.ToString() : null;
+        var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(Navigation.ToAbsoluteUri(Navigation.Uri).Query);
+        var sessionId = FirstQuery(query, "session_id", "orderId", "transactionId");
 
         await Payment.ConfirmReturnAsync(OrderNumber, sessionId);
 
@@ -55,5 +55,18 @@
         var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = state.User.IsInRole(AppRoles.Admin);
         _order = await Orders.GetByNumberAsync(OrderNumber, userId, isAdmin);
+    }
+
+    private static string? FirstQuery(IDictionary<string, Microsoft.Extensions.Primitives.StringValues> query, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (query.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value))
+            {
+                return value.ToString();
+            }
+        }
+
+        return null;
     }
 }
