@@ -148,6 +148,7 @@ jobs:
 
       - name: Allow GitHub runner on SQL firewall
         id: sql-fw
+        continue-on-error: true
         run: |
           ip=$(curl -fsS https://api.ipify.org)
           az sql server firewall-rule create \
@@ -158,6 +159,7 @@ jobs:
             --end-ip-address "$ip"
 
       - name: Grant web app identity access to SQL
+        continue-on-error: true
         uses: azure/sql-action@v2
         with:
           connection-string: Server=tcp:invtation.database.windows.net,1433;Initial Catalog=ashanandanvan-dev;Encrypt=True;Authentication=Active Directory Default;
