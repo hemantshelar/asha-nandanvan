@@ -26,6 +26,15 @@ resource entraAdmin 'Microsoft.Sql/servers/administrators@2023-08-01-preview' = 
   }
 }
 
+resource allowAzureServices 'Microsoft.Sql/servers/firewallRules@2023-08-01-preview' = {
+  parent: server
+  name: 'AllowAllWindowsAzureIps'
+  properties: {
+    startIpAddress: '0.0.0.0'
+    endIpAddress: '0.0.0.0'
+  }
+}
+
 resource database 'Microsoft.Sql/servers/databases@2023-08-01-preview' = {
   parent: server
   name: databaseName
