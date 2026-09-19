@@ -2,5 +2,5 @@ using '../main.bicep'
 
 param env = 'dev'
 param location = 'australiaeast'
-param sqlServerName = 'invitation'
-param sqlServerResourceGroup = 'invitation-web-group'
+param sqlServerName = 'invtation'
+param sqlServerResourceGroup = 'invtation-web_group'

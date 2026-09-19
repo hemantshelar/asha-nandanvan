@@ -8,10 +8,10 @@ param env string = 'dev'
 param location string = 'australiaeast'
 
 @description('Existing Azure SQL server name (not the FQDN).')
-param sqlServerName string = 'invitation'
+param sqlServerName string = 'invtation'
 
 @description('Resource group that already hosts the SQL server.')
-param sqlServerResourceGroup string = 'invitation-web-group'
+param sqlServerResourceGroup string = 'invtation-web_group'
 
 @description('Entra user or group login shown as SQL administrator.')
 param sqlEntraAdminLogin string = ''

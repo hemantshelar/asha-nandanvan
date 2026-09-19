@@ -78,9 +78,9 @@ Pushes to `feature/002-squre-pay` build the site, upload a web artifact, deploy 
 | Web app | `app-ashanandanvan-dev` |
 | Application Insights | `appi-ashanandanvan-dev` |
 | Log Analytics | `law-ashanandanvan-dev` |
-| SQL database | `ashanandanvan-dev` on existing server `invitation.database.windows.net` |
+| SQL database | `ashanandanvan-dev` on existing server `invtation.database.windows.net` |
 
-The SQL **server** is not created. The new database stays in `invitation-web-group` because that is where the server lives.
+The SQL **server** is not created. The new database stays in `invtation-web_group` because that is where the server lives.
 
 F1 cannot bind `ashanandanvan.com.au` or keep the site always on. Use `https://app-ashanandanvan-dev.azurewebsites.net` until you move to Basic (B1).
 

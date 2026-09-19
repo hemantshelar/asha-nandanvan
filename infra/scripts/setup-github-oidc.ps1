@@ -10,7 +10,7 @@ $repo = 'hemantshelar/asha-nandanvan'
 $appName = 'github-ashanandanvan-dev'
 $groupName = 'ashanandanvan-sql-admins-dev'
 $resourceGroup = 'ashanandanvan-dev'
-$sqlResourceGroup = 'invitation-web-group'
+$sqlResourceGroup = 'invtation-web_group'
 $location = 'australiaeast'
 $environment = 'dev'
 

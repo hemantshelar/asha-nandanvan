@@ -151,8 +151,8 @@ jobs:
         run: |
           ip=$(curl -fsS https://api.ipify.org)
           az sql server firewall-rule create \
-            --resource-group invitation-web-group \
-            --server invitation \
+            --resource-group invtation-web_group \
+            --server invtation \
             --name "gha-${{ github.run_id }}" \
             --start-ip-address "$ip" \
             --end-ip-address "$ip"
@@ -160,15 +160,15 @@ jobs:
       - name: Grant web app identity access to SQL
         uses: azure/sql-action@v2
         with:
-          connection-string: Server=tcp:invitation.database.windows.net,1433;Initial Catalog=ashanandanvan-dev;Encrypt=True;Authentication=Active Directory Default;
+          connection-string: Server=tcp:invtation.database.windows.net,1433;Initial Catalog=ashanandanvan-dev;Encrypt=True;Authentication=Active Directory Default;
           path: ./infra/scripts/grant-app-sql-access.sql
 
       - name: Remove GitHub runner SQL firewall rule
         if: always() && steps.sql-fw.outcome == 'success'
         run: |
           az sql server firewall-rule delete \
-            --resource-group invitation-web-group \
-            --server invitation \
+            --resource-group invtation-web_group \
+            --server invtation \
             --name "gha-${{ github.run_id }}"
 
   deploy:
