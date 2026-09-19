@@ -89,7 +89,7 @@ F1 cannot bind `ashanandanvan.com.au` or keep the site always on. Use `https://a
 1. `az login`
 2. Run `infra/scripts/setup-github-oidc.ps1`
 3. In GitHub: **Settings → Environments → New environment → `dev`**
-4. Add the variables and secrets the script prints (Azure IDs, SQL admin group, Google, Square, admin email)
+4. Add the **environment secrets** the script prints on `dev` (Azure IDs, SQL admin group, Google, Square, admin email)
 5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
 
 The script creates Entra group `ashanandanvan-sql-admins-dev` (you + the GitHub app) and Bicep sets that group as the SQL Entra admin so the pipeline can grant the web app's managed identity `db_owner`.
