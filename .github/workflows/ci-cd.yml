@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - feature/002-squre-pay
+      - feature/003-bicep-template
   pull_request:
   workflow_dispatch:
 
