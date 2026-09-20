@@ -14,6 +14,7 @@ using AshaNandanvan.Web.Endpoints;
 using AshaNandanvan.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Components.Server;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -71,6 +72,13 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy(AppRoles.Admin, policy => policy.RequireRole(AppRoles.Admin));
 });
 
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownIPNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
@@ -93,8 +101,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         squareStatus);
 }
 
+app.UseForwardedHeaders();
 if (!app.Environment.IsDevelopment())
 {
+    app.Use((context, next) =>
+    {
+        context.Request.Scheme = "https";
+        return next();
+    });
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
     app.UseHsts();
 }

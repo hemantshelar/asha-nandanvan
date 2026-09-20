@@ -59,6 +59,10 @@ resource webApp 'Microsoft.Web/sites@2024-04-01' = {
           value: 'Production'
         }
         {
+          name: 'ASPNETCORE_FORWARDEDHEADERS_ENABLED'
+          value: 'true'
+        }
+        {
           name: 'APPLICATIONINSIGHTS_CONNECTION_STRING'
           value: appInsightsConnectionString
         }
