@@ -1,0 +1,52 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build-web",
+      "type": "shell",
+      "command": "dotnet build src/AshaNandanvan.Web/AshaNandanvan.Web.csproj",
+      "problemMatcher": "$msCompile",
+      "group": "build"
+    },
+    {
+      "label": "ensure-local-config",
+      "type": "shell",
+      "command": "powershell -NoProfile -File infra/scripts/ensure-local-config.ps1",
+      "problemMatcher": [],
+      "presentation": { "reveal": "silent", "panel": "shared" }
+    },
+    {
+      "label": "predebug-docker-sql",
+      "dependsOn": ["ensure-local-config", "compose: sql", "build-web"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    },
+    {
+      "label": "compose: sql",
+      "type": "shell",
+      "command": "docker compose up sql -d --wait",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "compose: up",
+      "type": "shell",
+      "command": "docker compose up --build -d",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "compose: debug",
+      "type": "shell",
+      "command": "docker compose --profile debug up --build web-debug sql",
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "compose: down",
+      "type": "shell",
+      "command": "docker compose --profile debug down",
+      "problemMatcher": []
+    }
+  ]
+}

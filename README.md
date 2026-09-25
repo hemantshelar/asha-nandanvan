@@ -13,6 +13,63 @@ A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.
 
 ## Run locally
 
+### Docker (recommended)
+
+Keep two files and do not mix them:
+
+| File | What goes here |
+|---|---|
+| `src/AshaNandanvan.Web/secrets.json` | Google, Square, admin seed email (same keys as Azure App Settings) |
+| `.env` | SQL container password, database name, and host SQL settings |
+
+The **https (Docker SQL)** profile only sets `ASHA_SQL_SOURCE=docker`. That builds `ConnectionStrings__DefaultConnection` from `.env` and leaves `secrets.json` alone. The default **https** profile still uses LocalDB from `appsettings.json`.
+
+Azure uses the same setting names; only the SQL auth value changes (`sa` locally, Entra / managed identity in Azure).
+
+1. Install [Docker Desktop](https://www.docker.com/products/docker-desktop/) and the .NET 10 SDK.
+2. From the repo root:
+
+```powershell
+.\infra\scripts\ensure-local-config.ps1
+```
+
+3. Put Google / Square / admin values in `src/AshaNandanvan.Web/secrets.json`. Put the SQL password in `.env`. Do not commit either file.
+4. Pick a workflow:
+
+**A — Debug the app on the host, SQL in Docker**
+
+```powershell
+docker compose up sql -d
+dotnet run --project src/AshaNandanvan.Web --launch-profile "https (Docker SQL)"
+```
+
+In Cursor use **https (Docker SQL)** (starts SQL, then F5). Google / Square still come from `secrets.json`.
+
+Open https://localhost:7095
+
+**B — Test the published site in a container (closest to Azure)**
+
+```powershell
+docker compose up --build
+```
+
+Open http://localhost:8080  
+Google redirect URI for this mode: `http://localhost:8080/signin-google`
+
+**C — Debug inside the web container (hot reload)**
+
+```powershell
+docker compose --profile debug up --build
+```
+
+Then **Attach to Docker web-debug**. The site is http://localhost:8080.
+
+Stop everything with `docker compose --profile debug down`. SQL data stays in the `sql-data` volume.
+
+On first start the app applies EF migrations and seeds sample products.
+
+### Without Docker
+
 1. Install the .NET 10 SDK and SQL Server LocalDB.
 2. From the repo root:
 
@@ -29,10 +86,11 @@ On first run the app also applies migrations and seeds sample products.
 
 The host loads every source that exists. **A later source wins** for the same key:
 
-1. `appsettings.json` — committed defaults
+1. `appsettings.json` — committed defaults (LocalDB)
 2. `appsettings.{Environment}.json` — e.g. `appsettings.Development.json` (optional)
-3. `secrets.json` in the Web project folder, then .NET User Secrets (`%APPDATA%\Microsoft\UserSecrets\...`) (optional)
-4. Environment variables (and command-line args last)
+3. `secrets.json` in the Web project folder, then .NET User Secrets (Google, Square, admin)
+4. Docker SQL connection from `.env` — only when `ASHA_SQL_SOURCE=docker`
+5. Environment variables (and command-line args last)
 
 Missing files are skipped. `IOptions<T>` reads the merged result.
 
@@ -59,7 +117,13 @@ dotnet user-secrets set "Payment:Square:UseSandbox" "true"
 dotnet user-secrets set "Payment:Square:WebhookSignatureKey" ""
 ```
 
-Google authorized redirect URI: `https://localhost:7095/signin-google`
+Google authorized redirect URIs:
+
+- Host debug: `https://localhost:7095/signin-google`
+- Docker web / debug profile: `http://localhost:8080/signin-google`
+- Azure: `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
+
+If you change `MSSQL_SA_PASSWORD` in `.env`, update the **https (Docker SQL)** launch profile or run `export-docker-env.ps1` so the host uses the same password.
 
 The first Google account that matches `Admin:SeedEmail` is promoted to Admin and can manage products and orders.
 

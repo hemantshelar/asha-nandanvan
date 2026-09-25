@@ -1,0 +1,36 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "https (Docker SQL)",
+      "type": "coreclr",
+      "request": "launch",
+      "preLaunchTask": "predebug-docker-sql",
+      "program": "${workspaceFolder}/src/AshaNandanvan.Web/bin/Debug/net10.0/AshaNandanvan.Web.dll",
+      "cwd": "${workspaceFolder}/src/AshaNandanvan.Web",
+      "env": {
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "ASPNETCORE_FORWARDEDHEADERS_ENABLED": "true",
+        "ASPNETCORE_URLS": "https://localhost:7095;http://localhost:5259",
+        "ASHA_SQL_SOURCE": "docker"
+      },
+      "launchBrowser": {
+        "enabled": true,
+        "args": "${auto-detect-url}"
+      }
+    },
+    {
+      "name": "Attach to Docker web-debug",
+      "type": "coreclr",
+      "request": "attach",
+      "processName": "dotnet",
+      "pipeTransport": {
+        "pipeCwd": "${workspaceFolder}",
+        "pipeProgram": "docker",
+        "pipeArgs": ["exec", "-i", "asha-nandanvan-web-debug"],
+        "debuggerPath": "/vsdbg/vsdbg",
+        "quoteArgs": false
+      }
+    }
+  ]
+}

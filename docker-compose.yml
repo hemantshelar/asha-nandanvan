@@ -1,0 +1,95 @@
+# Local stack that mirrors Azure App Service + Azure SQL using the same setting names.
+# App secrets (Google, Square, admin) come from src/AshaNandanvan.Web/secrets.json.
+# .env supplies SQL / host settings only and overrides the connection string.
+#   docker compose up                 # SQL + published web (test)
+#   docker compose up sql -d          # SQL only; debug the app on the host
+#   docker compose --profile debug up # SQL + SDK container with hot reload
+
+name: asha-nandanvan
+
+services:
+  sql:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: linux/amd64
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Your_password123}
+    ports:
+      - "127.0.0.1:1433:1433"
+    volumes:
+      - sql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/1433'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 20s
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: final
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: ${ASPNETCORE_FORWARDEDHEADERS_ENABLED:-true}
+      ConnectionStrings__DefaultConnection: Server=sql,1433;Database=${SQL_DATABASE:-ashanandanvan-dev};User Id=${SQL_USER:-sa};Password=${MSSQL_SA_PASSWORD:-Your_password123};Encrypt=${SQL_ENCRYPT:-True};TrustServerCertificate=${SQL_TRUST_SERVER_CERTIFICATE:-True};MultipleActiveResultSets=${SQL_MULTIPLE_ACTIVE_RESULT_SETS:-true}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./src/AshaNandanvan.Web/secrets.json:/app/secrets.json:ro
+      - web-uploads:/app/wwwroot/uploads
+      - dataprotection:/home/app/.aspnet/DataProtection-Keys
+
+  web-debug:
+    profiles: ["debug"]
+    container_name: asha-nandanvan-web-debug
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: debug
+    working_dir: /src
+    command:
+      [
+        "dotnet",
+        "watch",
+        "run",
+        "--project",
+        "src/AshaNandanvan.Web/AshaNandanvan.Web.csproj",
+        "--no-launch-profile",
+        "--urls",
+        "http://+:8080"
+      ]
+    depends_on:
+      sql:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      DOTNET_USE_POLLING_FILE_WATCHER: "1"
+      ASHA_SQL_SOURCE: docker
+      SQL_SERVER: sql,1433
+      SQL_DATABASE: ${SQL_DATABASE:-ashanandanvan-dev}
+      SQL_USER: ${SQL_USER:-sa}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:-Your_password123}
+      SQL_ENCRYPT: ${SQL_ENCRYPT:-True}
+      SQL_TRUST_SERVER_CERTIFICATE: ${SQL_TRUST_SERVER_CERTIFICATE:-True}
+      SQL_MULTIPLE_ACTIVE_RESULT_SETS: ${SQL_MULTIPLE_ACTIVE_RESULT_SETS:-true}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/src
+      - nuget-cache:/root/.nuget/packages
+      - web-uploads:/src/src/AshaNandanvan.Web/wwwroot/uploads
+
+volumes:
+  sql-data:
+  web-uploads:
+  nuget-cache:
+  dataprotection:

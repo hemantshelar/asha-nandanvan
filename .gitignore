@@ -14,6 +14,7 @@ artifacts/
 infra/*.json
 
 ## Secrets and local env
+.env
 appsettings.*.local.json
 *.pfx
 secrets.json
@@ -27,6 +28,9 @@ src/AshaNandanvan.Web/wwwroot/uploads/*
 .idea/
 *.rsuser
 .vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+!.vscode/extensions.json
 
 ## OS
 Thumbs.db
