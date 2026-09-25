@@ -15,12 +15,12 @@ A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.
 
 ### Docker (recommended)
 
-Keep two files and do not mix them:
+Keep secrets out of git. Docker loads `.env` into the web container (same names as Azure App Settings). Host debug can use `secrets.json` or user secrets.
 
 | File | What goes here |
 |---|---|
-| `src/AshaNandanvan.Web/secrets.json` | Google, Square, admin seed email (same keys as Azure App Settings) |
-| `.env` | SQL container password, database name, and host SQL settings |
+| `.env` | SQL settings plus Google / Square / admin for the container |
+| `src/AshaNandanvan.Web/secrets.json` | Same Google / Square / admin values for host F5 |
 
 The **https (Docker SQL)** profile only sets `ASHA_SQL_SOURCE=docker`. That builds `ConnectionStrings__DefaultConnection` from `.env` and leaves `secrets.json` alone. The default **https** profile still uses LocalDB from `appsettings.json`.
 
@@ -33,7 +33,7 @@ Azure uses the same setting names; only the SQL auth value changes (`sa` locally
 .\infra\scripts\ensure-local-config.ps1
 ```
 
-3. Put Google / Square / admin values in `src/AshaNandanvan.Web/secrets.json`. Put the SQL password in `.env`. Do not commit either file.
+3. Put Google / Square / admin values in `.env` (and in `secrets.json` if you F5 on the host). Do not commit either file.
 4. Pick a workflow:
 
 **A — Debug the app on the host, SQL in Docker**

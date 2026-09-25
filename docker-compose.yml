@@ -34,6 +34,9 @@ services:
     depends_on:
       sql:
         condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
     environment:
       ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
@@ -44,7 +47,6 @@ services:
     volumes:
       - ./src/AshaNandanvan.Web/secrets.json:/app/secrets.json:ro
       - web-uploads:/app/wwwroot/uploads
-      - dataprotection:/home/app/.aspnet/DataProtection-Keys
 
   web-debug:
     profiles: ["debug"]
@@ -55,19 +57,19 @@ services:
       target: debug
     working_dir: /src
     command:
-      [
-        "dotnet",
-        "watch",
-        "run",
-        "--project",
-        "src/AshaNandanvan.Web/AshaNandanvan.Web.csproj",
-        "--no-launch-profile",
-        "--urls",
-        "http://+:8080"
-      ]
+      - bash
+      - -lc
+      - >
+        dotnet restore src/AshaNandanvan.Web/AshaNandanvan.Web.csproj
+        && exec dotnet watch run
+        --project src/AshaNandanvan.Web/AshaNandanvan.Web.csproj
+        --no-restore --no-launch-profile --urls http://+:8080
     depends_on:
       sql:
         condition: service_healthy
+    env_file:
+      - path: .env
+        required: false
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
@@ -82,14 +84,21 @@ services:
       SQL_TRUST_SERVER_CERTIFICATE: ${SQL_TRUST_SERVER_CERTIFICATE:-True}
       SQL_MULTIPLE_ACTIVE_RESULT_SETS: ${SQL_MULTIPLE_ACTIVE_RESULT_SETS:-true}
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     volumes:
       - ./:/src
       - nuget-cache:/root/.nuget/packages
+      - /src/src/AshaNandanvan.Web/bin
+      - /src/src/AshaNandanvan.Web/obj
+      - /src/src/AshaNandanvan.Application/bin
+      - /src/src/AshaNandanvan.Application/obj
+      - /src/src/AshaNandanvan.Infrastructure/bin
+      - /src/src/AshaNandanvan.Infrastructure/obj
+      - /src/src/AshaNandanvan.Domain/bin
+      - /src/src/AshaNandanvan.Domain/obj
       - web-uploads:/src/src/AshaNandanvan.Web/wwwroot/uploads
 
 volumes:
   sql-data:
   web-uploads:
   nuget-cache:
-  dataprotection:
