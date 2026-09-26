@@ -13,7 +13,7 @@
     <header class="topbar">
         <div class="shell topbar__inner">
             <a class="brand" href="/">
-                <span class="brand__mark" aria-hidden="true"></span>
+                <img class="brand__mark" src="/images/brand.png" alt="" />
                 <span class="brand__text">
                     <strong>@Store.Value.Name</strong>
                     <small>Sydney backyard</small>
@@ -44,10 +44,14 @@
                 <AuthorizeView>
                     <Authorized>
                         <span class="who">@context.User.Identity?.Name</span>
-                        <a class="text-link" href="/account/logout">Sign out</a>
+                        <a class="icon-link" href="/account/logout" aria-label="Sign out">
+                            <MudIcon Icon="@Icons.Material.Filled.Logout" />
+                        </a>
                     </Authorized>
                     <NotAuthorized>
-                        <a class="btn btn--solid" href="@LoginHref">Sign in</a>
+                        <a class="icon-link" href="@LoginHref" aria-label="Sign in">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle" />
+                        </a>
                     </NotAuthorized>
                 </AuthorizeView>
                 <button type="button" class="menu-toggle" @onclick="ToggleMenu" aria-label="Open menu">
@@ -69,6 +73,14 @@
                     </AuthorizeView>
                     <AuthorizeView Roles="@AppRoles.Admin">
                         <NavLink href="/admin/products" @onclick="CloseMenu">Admin</NavLink>
+                    </AuthorizeView>
+                    <AuthorizeView>
+                        <Authorized>
+                            <a href="/account/logout" @onclick="CloseMenu">Sign out</a>
+                        </Authorized>
+                        <NotAuthorized>
+                            <a href="@LoginHref" @onclick="CloseMenu">Sign in</a>
+                        </NotAuthorized>
                     </AuthorizeView>
                 </nav>
             </div>
