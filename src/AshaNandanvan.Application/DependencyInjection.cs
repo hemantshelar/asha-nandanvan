@@ -16,6 +16,9 @@ public static class DependencyInjection
         services.AddOptions<GoogleAuthOptions>()
             .Bind(configuration.GetSection(GoogleAuthOptions.SectionName));
 
+        services.AddOptions<FacebookAuthOptions>()
+            .Bind(configuration.GetSection(FacebookAuthOptions.SectionName));
+
         services.AddOptions<PaymentOptions>()
             .Bind(configuration.GetSection(PaymentOptions.SectionName));
 

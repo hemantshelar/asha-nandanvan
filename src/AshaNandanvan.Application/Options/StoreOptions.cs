@@ -39,4 +39,8 @@ public sealed class StoreOptions
     public string Currency { get; set; } = "AUD";
 
     public string CurrencySymbol { get; set; } = "$";
+
+    [Required]
+    [EmailAddress]
+    public string ContactEmail { get; set; } = "admin@ashanandanvan.com.au";
 }

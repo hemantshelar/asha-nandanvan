@@ -1,0 +1,136 @@
+@page "/data-deletion"
+@attribute [AllowAnonymous]
+@inject IOptions<StoreOptions> StoreAccessor
+
+<PageTitle>User data deletion — @Store.Name</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Your account</p>
+        <h1>User data deletion</h1>
+        <p class="lede">
+            How to ask @Store.Name to delete the personal information we hold, including data from
+            Facebook or Google sign-in. Last updated 27 September 2026.
+        </p>
+    </div>
+</section>
+
+<section class="shell prose-page">
+    <article>
+        <h2>Ask us to delete your data</h2>
+        <p>
+            Email <a href="@MailtoHref">@Store.ContactEmail</a> with the subject
+            <strong>Data deletion request</strong>. Say that you want your @Store.Name account and
+            personal information deleted, and include:
+        </p>
+        <ul>
+            <li>the email address you use to sign in</li>
+            <li>whether you used Google, Facebook, or both</li>
+            <li>any order numbers you still have (optional, but it helps us find the right records)</li>
+        </ul>
+        <AuthorizeView>
+            <Authorized>
+                <p>
+                    You are signed in as <strong>@context.User.Identity?.Name</strong>.
+                    You can use <a href="@SignedInMailto(context.User.Identity?.Name)">this pre-filled email</a>.
+                </p>
+            </Authorized>
+        </AuthorizeView>
+        <p>
+            We aim to complete a verified request within 30 days, in line with the Australian Privacy
+            Principles. We may reply from the same address to confirm it was you.
+        </p>
+        <p>
+            You can also send the same request through our
+            <a href="@Store.FacebookUrl" target="_blank" rel="noopener noreferrer">Facebook page</a>
+            if you cannot use email.
+        </p>
+    </article>
+
+    <article>
+        <h2>If you signed in with Facebook</h2>
+        <p>
+            Removing our app in Facebook does not always delete the copy we already stored. Please email
+            us as well. To disconnect Facebook Login:
+        </p>
+        <ol>
+            <li>Open Facebook Settings &amp; privacy → Settings → Apps and websites.</li>
+            <li>Find @Store.Name (or the Facebook app name you approved).</li>
+            <li>Remove the app. Facebook may then send us a deletion notice if that connection is still configured.</li>
+        </ol>
+        <p>
+            After you remove the app, Facebook will stop sharing your name and email with us for new
+            sign-ins. Any future visit will need Google, a new Facebook approval, or a guest checkout
+            if we offer one.
+        </p>
+    </article>
+
+    <article>
+        <h2>If you signed in with Google</h2>
+        <p>
+            You can remove site access in your Google Account under third-party access, and email us so
+            we delete the account on this site too.
+        </p>
+    </article>
+
+    <article>
+        <h2>What we delete</h2>
+        <p>Once we verify the request, we delete or de-identify:</p>
+        <ul>
+            <li>your sign-in account (email, display name, roles)</li>
+            <li>the Google and Facebook login links stored for that account</li>
+            <li>your saved basket</li>
+            <li>pet name and breed on open or upcoming stays, unless we must keep a short safety note for an active stay that has not yet finished</li>
+        </ul>
+    </article>
+
+    <article>
+        <h2>What we may keep</h2>
+        <p>
+            Australian tax law and the Australian Consumer Law can require us to keep a limited record of
+            what was ordered, paid, and when. We do not keep that so we can market to you. We reduce it
+            to what we still need (for example an order number and amount, without your login), then
+            delete or de-identify the rest when we no longer need it.
+        </p>
+        <p>
+            We may also keep information if NSW law or a Penrith City Council or police request requires
+            it — for example a serious animal incident. That is uncommon. We will tell you if we cannot
+            delete something, and why, unless the law stops us from saying so.
+        </p>
+    </article>
+
+    <article>
+        <h2>Signing out yourself</h2>
+        <p>
+            Use <strong>Sign out</strong> in the header to end this browser session. Clearing cookies
+            removes the signed-in cookie and a guest basket on this device. That does not delete your
+            account on our server — email us for that.
+        </p>
+    </article>
+
+    <article>
+        <h2>Complaints</h2>
+        <p>
+            If you are not satisfied with how we handle a deletion request, email us first. You may then
+            contact the
+            <a href="https://www.oaic.gov.au/" target="_blank" rel="noopener noreferrer">Office of the Australian Information Commissioner</a>.
+            The full practice is in our <a href="/privacy">Privacy policy</a>.
+        </p>
+    </article>
+</section>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+
+    private string MailtoHref =>
+        $"mailto:{Store.ContactEmail}?subject={Uri.EscapeDataString("Data deletion request")}&body={Uri.EscapeDataString(Body(null))}";
+
+    private string SignedInMailto(string? email) =>
+        $"mailto:{Store.ContactEmail}?subject={Uri.EscapeDataString("Data deletion request")}&body={Uri.EscapeDataString(Body(email))}";
+
+    private static string Body(string? email)
+    {
+        var who = string.IsNullOrWhiteSpace(email) ? "[the email I use to sign in]" : email;
+        return $"Please delete my Asha Nandanvan account and personal information.\n\nSign-in email: {who}\nI signed in with: [Google / Facebook / both]\nOrder numbers (optional):\n";
+    }
+}

@@ -108,6 +108,8 @@ cd src/AshaNandanvan.Web
 dotnet user-secrets init
 dotnet user-secrets set "GoogleAuth:ClientId" "..."
 dotnet user-secrets set "GoogleAuth:ClientSecret" "..."
+dotnet user-secrets set "FacebookAuth:AppId" "..."
+dotnet user-secrets set "FacebookAuth:AppSecret" "..."
 dotnet user-secrets set "Admin:SeedEmail" "your.google.account@gmail.com"
 dotnet user-secrets set "Payment:Provider" "Square"
 dotnet user-secrets set "Payment:Square:ApplicationId" "sandbox-sq0idb-..."
@@ -123,6 +125,20 @@ Google authorized redirect URIs:
 - Docker web / debug profile: `http://localhost:8080/signin-google`
 - Azure default: `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
 - Custom domain: `https://www.ashanandanvan.com.au/signin-google` and `https://ashanandanvan.com.au/signin-google`
+
+Facebook Valid OAuth Redirect URIs (same hosts, path `/signin-facebook`):
+
+- `https://localhost:7095/signin-facebook`
+- `http://localhost:8080/signin-facebook`
+- `https://app-ashanandanvan-dev.azurewebsites.net/signin-facebook`
+- `https://www.ashanandanvan.com.au/signin-facebook` and `https://ashanandanvan.com.au/signin-facebook`
+
+Facebook App settings (required for Live / App Review):
+
+- Privacy policy URL: `https://www.ashanandanvan.com.au/privacy`
+- User data deletion URL: `https://www.ashanandanvan.com.au/data-deletion`
+
+On Azure, add `FacebookAuth__AppId` and `FacebookAuth__AppSecret` next to the Google settings.
 
 If you change `MSSQL_SA_PASSWORD` in `.env`, update the **https (Docker SQL)** launch profile or run `export-docker-env.ps1` so the host uses the same password.
 

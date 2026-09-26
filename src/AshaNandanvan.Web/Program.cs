@@ -67,6 +67,20 @@ if (google?.IsConfigured == true)
     });
 }
 
+var facebook = builder.Configuration.GetSection(FacebookAuthOptions.SectionName).Get<FacebookAuthOptions>();
+if (facebook?.IsConfigured == true)
+{
+    builder.Services.AddAuthentication().AddFacebook(options =>
+    {
+        options.AppId = facebook.AppId;
+        options.AppSecret = facebook.AppSecret;
+        options.CallbackPath = "/signin-facebook";
+        options.Fields.Add("email");
+        options.Fields.Add("name");
+        options.Scope.Add("email");
+    });
+}
+
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy(AppRoles.Admin, policy => policy.RequireRole(AppRoles.Admin));

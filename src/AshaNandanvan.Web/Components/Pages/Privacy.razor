@@ -1,0 +1,225 @@
+@page "/privacy"
+@attribute [AllowAnonymous]
+@inject IOptions<StoreOptions> StoreAccessor
+
+<PageTitle>Privacy policy — @Store.Name</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Australian privacy</p>
+        <h1>Privacy policy</h1>
+        <p class="lede">
+            How @Store.Name handles personal information for this website, sign-in, orders, and backyard visits.
+            Last updated 27 September 2026.
+        </p>
+    </div>
+</section>
+
+<section class="shell prose-page">
+    <article>
+        <h2>1. Who we are</h2>
+        <p>
+            @Store.Name is a private backyard in the Penrith City Council local government area,
+            New South Wales, Australia. We sell garden produce and composting supplies, offer composting
+            education visits, and take a small number of dog-sitting stays. Pickup and visits are in
+            @Store.City. We do not publish the street address on this site.
+        </p>
+        <p>
+            This policy is for <strong>ashanandanvan.com.au</strong> and the related Facebook Login app.
+            It is not a Penrith City Council, NSW Government, or Australian Government policy.
+        </p>
+    </article>
+
+    <article>
+        <h2>2. How to contact us</h2>
+        <p>
+            Privacy and data-deletion requests: <a href="mailto:@Store.ContactEmail">@Store.ContactEmail</a>.
+            You can also write to us through our
+            <a href="@Store.FacebookUrl" target="_blank" rel="noopener noreferrer">Facebook page</a>.
+        </p>
+        <p>
+            Please do not send payment card numbers, passwords, or copies of identity documents unless we
+            ask for a limited check after a deletion or access request.
+        </p>
+    </article>
+
+    <article>
+        <h2>3. Australian privacy law</h2>
+        <p>
+            We handle personal information in line with the Australian Privacy Principles (APPs) in the
+            <em>Privacy Act 1988</em> (Cth), including the Notifiable Data Breaches scheme. Some small
+            businesses with annual turnover under $3 million are not required to comply with the Privacy Act.
+            We still use the APPs as our standard because this site creates accounts, uses Google and
+            Facebook sign-in, and stores booking details.
+        </p>
+        <p>
+            The NSW <em>Privacy and Personal Information Protection Act 1998</em> applies to NSW public
+            sector agencies. We are a private backyard, not a council or government agency, so that Act
+            does not regulate us. NSW and Penrith rules that do affect us are about how the backyard is
+            run (animals, food, amenity), not a separate privacy code.
+        </p>
+        <p>
+            If we cannot resolve a privacy complaint, you may contact the
+            <a href="https://www.oaic.gov.au/" target="_blank" rel="noopener noreferrer">Office of the Australian Information Commissioner</a>.
+            For a goods or services dispute, NSW Fair Trading may be the better first step.
+        </p>
+    </article>
+
+    <article>
+        <h2>4. Penrith backyard, NSW animals, and food</h2>
+        <p>
+            The backyard sits in the Penrith LGA. We keep poultry and host dogs as a private household
+            arrangement. We consider NSW companion animal rules and Penrith Council keeping-of-animals
+            requirements when we decide whether we can take a stay. That is why we ask for the dog’s name
+            and breed, and why some large breeds need a trial stay first.
+        </p>
+        <p>
+            We do not give Penrith City Council, NSW Police, or the NSW Food Authority your details as a
+            routine share. We may disclose limited information if Australian or NSW law requires it — for
+            example a serious dog incident, a food-safety notice, or a lawful request. We are not a
+            council pound, veterinary practice, or registered food business page on this site, and this
+            policy does not claim any council licence.
+        </p>
+    </article>
+
+    <article>
+        <h2>5. What we collect</h2>
+        <p>We only collect what we need to run the site and the backyard:</p>
+        <ul>
+            <li><strong>Account:</strong> email address, display name, and the Google or Facebook login key. We do not set a site password.</li>
+            <li><strong>Orders:</strong> name, email, optional phone, pickup or visit date and window, items, amounts, and order status.</li>
+            <li><strong>Dog sitting:</strong> pet name, breed, stay dates, and whether the stay is a trial. We use this for safety, capacity, and the trial-then-longer-stay process.</li>
+            <li><strong>Payments:</strong> that a payment was made, the provider name, and a payment reference. We do not store full card numbers. Square or Stripe collect card details on their own pages.</li>
+            <li><strong>Basket:</strong> items you add, including pet details for a stay. Signed-in baskets are stored on our server. Guest baskets stay in your browser.</li>
+            <li><strong>Technical:</strong> cookies needed to keep you signed in, and ordinary server or hosting logs (which may include an IP address and the page requested).</li>
+        </ul>
+        <p>
+            We do not collect government identifiers, health records, or payment card PANs. We do not ask
+            Facebook for your friends list, posts, photos, or the right to publish on your profile.
+            Facebook Login is limited to your name and email.
+        </p>
+    </article>
+
+    <article>
+        <h2>6. How we collect it</h2>
+        <ul>
+            <li>Directly from you on this site (checkout, booking fields, messages you send us).</li>
+            <li>From Google or Facebook when you choose that sign-in and they share the name and email you allow.</li>
+            <li>From Square or Stripe when a payment succeeds or fails (status and reference only).</li>
+        </ul>
+        <p>
+            If Facebook or Google does not share an email, we cannot create an account. You can use the
+            other sign-in or contact us.
+        </p>
+    </article>
+
+    <article>
+        <h2>7. Why we use it</h2>
+        <ul>
+            <li>Create and keep your signed-in session.</li>
+            <li>Take, approve, reject, and fulfil orders and backyard visits.</li>
+            <li>Decide whether we can host a dog, including a trial stay.</li>
+            <li>Take payment after we approve an order, or record cash at pickup.</li>
+            <li>Contact you about that order, stay, or pickup window.</li>
+            <li>Keep the site secure and diagnose faults.</li>
+            <li>Meet Australian Consumer Law and tax record-keeping where those apply.</li>
+        </ul>
+        <p>We do not sell personal information. We do not use Facebook Login data to advertise to your friends.</p>
+    </article>
+
+    <article>
+        <h2>8. Who else sees it</h2>
+        <ul>
+            <li><strong>Us:</strong> the people who run @Store.Name, to approve orders and host visits.</li>
+            <li><strong>Google or Meta/Facebook:</strong> only if you sign in with them. Their policies then also apply to that sign-in.</li>
+            <li><strong>Square or Stripe:</strong> if you pay online.</li>
+            <li><strong>Microsoft Azure:</strong> website, database, and diagnostic hosting, currently in Australia.</li>
+            <li><strong>Authorities:</strong> only if Australian or NSW law requires it, or to protect a person or animal from serious harm.</li>
+        </ul>
+    </article>
+
+    <article>
+        <h2>9. Overseas disclosure</h2>
+        <p>
+            Your account and orders are stored on our Australian-hosted database. Google, Meta/Facebook,
+            and Square or Stripe are overseas organisations (often in the United States). If you use those
+            services, some of your information is disclosed outside Australia. Those companies apply their
+            own privacy and security controls. We do not control their systems.
+        </p>
+    </article>
+
+    <article>
+        <h2>10. Cookies and local storage</h2>
+        <p>
+            We use an authentication cookie so you stay signed in, and a guest-basket value in your
+            browser until you sign in. We do not use third-party advertising cookies on this site.
+            You can clear cookies and site data in your browser; that signs you out and drops a guest basket.
+        </p>
+    </article>
+
+    <article>
+        <h2>11. Children</h2>
+        <p>
+            This site is for people 18 years or older. We do not knowingly create accounts for children.
+            Orders, pickup, and dog sitting are adult arrangements. If you believe a child has an account,
+            email <a href="mailto:@Store.ContactEmail">@Store.ContactEmail</a> and we will delete it.
+        </p>
+    </article>
+
+    <article>
+        <h2>12. Security</h2>
+        <p>
+            Access to the admin tools is limited to the backyard operators. Sign-in uses Google or Facebook
+            rather than a password on this site. Payments go through a hosted checkout. No method is
+            perfect. If we become aware of a data breach that is likely to cause serious harm, we will
+            follow the Notifiable Data Breaches process, including notice to affected people and the OAIC
+            when that scheme applies.
+        </p>
+    </article>
+
+    <article>
+        <h2>13. How long we keep it</h2>
+        <p>
+            Account and login details stay until you ask us to delete them, or we close the account.
+            We may keep a limited order record (what was booked, paid, and when) for as long as Australian
+            tax or consumer law reasonably requires — often several years — then delete or de-identify it.
+            Server logs are kept only for a short operational period.
+        </p>
+    </article>
+
+    <article>
+        <h2>14. Access, correction, and deletion</h2>
+        <p>
+            You can ask us for a copy of the personal information we hold about you, ask us to correct it,
+            or ask us to delete it. We aim to respond within 30 days. We may need to confirm the request
+            came from you. See <a href="/data-deletion">User data deletion</a> for the Facebook and account
+            deletion steps.
+        </p>
+        <p>
+            We may refuse access or full deletion only where Australian law allows it — for example where
+            we must keep a transaction record, or where giving access would unreasonably affect someone else.
+            If we refuse, we will say why in plain language.
+        </p>
+    </article>
+
+    <article>
+        <h2>15. Email and marketing</h2>
+        <p>
+            We do not run a marketing list on this site. If we later send booking or order emails, those
+            are transactional. Any promotional email would include a way to opt out, in line with the
+            <em>Spam Act 2003</em> (Cth).
+        </p>
+    </article>
+
+    <article>
+        <h2>16. Changes</h2>
+        <p>
+            If this policy changes, we will update this page and the date above. Continued use of the site
+            after a change means the new wording applies to information we collect from then on.
+        </p>
+    </article>
+</section>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+}

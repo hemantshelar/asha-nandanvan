@@ -15,17 +15,13 @@ public static class AccountEndpoints
             SignInManager<ApplicationUser> signInManager,
             IOptions<GoogleAuthOptions> google,
             string? returnUrl) =>
-        {
-            if (!google.Value.IsConfigured)
-            {
-                return Results.Redirect("/account/login?error=not-configured");
-            }
+            ChallengeExternal(signInManager, google.Value.IsConfigured, "Google", returnUrl));
 
-            var safeReturn = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith('/') ? "/" : returnUrl;
-            var redirectUrl = $"/account/external-callback?returnUrl={Uri.EscapeDataString(safeReturn)}";
-            var properties = signInManager.ConfigureExternalAuthenticationProperties("Google", redirectUrl);
-            return Results.Challenge(properties, ["Google"]);
-        });
+        endpoints.MapGet("/account/facebook-login", (
+            SignInManager<ApplicationUser> signInManager,
+            IOptions<FacebookAuthOptions> facebook,
+            string? returnUrl) =>
+            ChallengeExternal(signInManager, facebook.Value.IsConfigured, "Facebook", returnUrl));
 
         endpoints.MapGet("/account/external-callback", async (
             SignInManager<ApplicationUser> signInManager,
@@ -36,7 +32,7 @@ public static class AccountEndpoints
             var info = await signInManager.GetExternalLoginInfoAsync();
             if (info is null)
             {
-                return Results.Redirect("/account/login?error=google");
+                return Results.Redirect("/account/login?error=external");
             }
 
             var email = info.Principal.FindFirstValue(ClaimTypes.Email);
@@ -92,6 +88,23 @@ public static class AccountEndpoints
         });
 
         return endpoints;
+    }
+
+    private static IResult ChallengeExternal(
+        SignInManager<ApplicationUser> signInManager,
+        bool configured,
+        string provider,
+        string? returnUrl)
+    {
+        if (!configured)
+        {
+            return Results.Redirect("/account/login?error=not-configured");
+        }
+
+        var safeReturn = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith('/') ? "/" : returnUrl;
+        var redirectUrl = $"/account/external-callback?returnUrl={Uri.EscapeDataString(safeReturn)}";
+        var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
+        return Results.Challenge(properties, [provider]);
     }
 
     private static bool IsSeedAdmin(string email, string seedEmail) =>

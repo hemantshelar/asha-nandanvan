@@ -608,6 +608,20 @@ input, select, textarea {
 .terms summary { cursor: pointer; color: var(--lime); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 .terms p { margin-top: 0.6rem; line-height: 1.55; }
 .login-panel { max-width: 36rem; }
+.login-actions { display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; max-width: 22rem; }
+.login-actions .btn { width: 100%; text-align: center; }
+.login-legal { margin-top: 1.25rem; max-width: 36rem; line-height: 1.55; }
+.prose-page {
+    max-width: 46rem;
+    padding-bottom: 2rem;
+}
+.prose-page article + article { margin-top: 2rem; }
+.prose-page h2 { font-size: 1.45rem; margin: 0 0 0.65rem; }
+.prose-page p, .prose-page li { color: var(--muted); line-height: 1.65; }
+.prose-page p { margin: 0 0 0.85rem; }
+.prose-page ul, .prose-page ol { margin: 0 0 0.85rem; padding-left: 1.2rem; }
+.prose-page li { margin: 0.28rem 0; }
+.prose-page strong { color: var(--text); }
 .total { font-weight: 800; font-size: 1.2rem; color: var(--lime); }
 
 .mud-input, .mud-input-control, .mud-input-slot, .mud-input > input {
