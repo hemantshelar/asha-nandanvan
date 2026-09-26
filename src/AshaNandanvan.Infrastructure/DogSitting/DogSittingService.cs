@@ -13,8 +13,7 @@ public sealed class DogSittingService : IDogSittingService
 
     private static readonly OrderStatus[] ConfirmedStatuses =
     [
-        OrderStatus.Placed,
-        OrderStatus.Paid,
+        OrderStatus.Confirmed,
         OrderStatus.ReadyForPickup
     ];
 
@@ -88,6 +87,7 @@ public sealed class DogSittingService : IDogSittingService
         DateTimeOffset dropOff,
         DateTimeOffset pickUp,
         int dogs = 1,
+        bool allowPastDropOff = false,
         CancellationToken cancellationToken = default)
     {
         if (pickUp <= dropOff)
@@ -95,7 +95,7 @@ public sealed class DogSittingService : IDogSittingService
             throw new InvalidOperationException("Pick-up must be after drop-off.");
         }
 
-        if (dropOff < DateTimeOffset.UtcNow.AddMinutes(-5))
+        if (!allowPastDropOff && dropOff < DateTimeOffset.UtcNow.AddMinutes(-5))
         {
             throw new InvalidOperationException("Drop-off cannot be in the past.");
         }
@@ -171,6 +171,7 @@ public sealed class DogSittingService : IDogSittingService
             .Include(i => i.ProductSlot)
             .Where(i => i.Product.Category == ProductCategory.DogSitting
                 && i.Order.Status != OrderStatus.Cancelled
+                && i.Order.Status != OrderStatus.Rejected
                 && i.Order.Status != OrderStatus.Completed)
             .ToListAsync(cancellationToken);
 

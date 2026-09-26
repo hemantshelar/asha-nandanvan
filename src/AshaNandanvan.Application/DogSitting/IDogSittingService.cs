@@ -8,5 +8,6 @@ public interface IDogSittingService
         DateTimeOffset dropOff,
         DateTimeOffset pickUp,
         int dogs = 1,
+        bool allowPastDropOff = false,
         CancellationToken cancellationToken = default);
 }

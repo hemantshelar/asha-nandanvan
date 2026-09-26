@@ -17,7 +17,7 @@
         <p class="lede">
             @if (_isAdmin)
             {
-                <text>Search any customer, then open an order to take cash or show a pay QR.</text>
+                <text>Search any customer, then approve or reject the order. After a trial night, accept the original stay or reject it. A stay is confirmed only after you approve.</text>
             }
             else
             {
@@ -72,6 +72,17 @@
                 Visit from
                 <input type="date" @bind="_fromDate" />
             </label>
+            @if (_isAdmin)
+            {
+                <label>
+                    Stay type
+                    <select @bind="_trialFilter">
+                        <option value="">All stays</option>
+                        <option value="trial">Trial nights only</option>
+                        <option value="regular">Regular stays only</option>
+                    </select>
+                </label>
+            }
         </form>
         <p class="muted">@Visible.Count() of @_source.Count order@( _source.Count == 1 ? "" : "s")</p>
         <div class="table-scroll">
@@ -115,9 +126,17 @@
                                 @foreach (var line in order.Items)
                                 {
                                     <div>@line.Quantity × @line.ProductName</div>
+                                    @if (line.IsTrialStay)
+                                    {
+                                        <div class="muted">Free trial night</div>
+                                    }
                                     @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
                                     {
                                         <div class="muted">@line.SlotLabel</div>
+                                    }
+                                    @if (line.IsTrialStay && line.IntendedStayStartsAt is not null && line.IntendedStayEndsAt is not null)
+                                    {
+                                        <div class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</div>
                                     }
                                 }
                             </td>
@@ -138,10 +157,24 @@
                                 }
                             </td>
                             <td>
-                                @if (order.CanPay && !_needsSquareKeys)
-                                {
-                                    <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
-                                }
+                                <div class="order-actions">
+                                    @if (_isAdmin && order.CanAcceptOriginalStay)
+                                    {
+                                        <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => AcceptOriginalAsync(order)">Accept original booking</button>
+                                    }
+                                    else if (_isAdmin && order.CanApprove)
+                                    {
+                                        <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => ApproveAsync(order)">Approve</button>
+                                    }
+                                    @if (_isAdmin && order.CanReject)
+                                    {
+                                        <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => RejectAsync(order)">Reject</button>
+                                    }
+                                    @if (order.CanPay && !_needsSquareKeys)
+                                    {
+                                        <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
+                                    }
+                                </div>
                             </td>
                         </tr>
                     }
@@ -164,9 +197,11 @@
     private string _phone = string.Empty;
     private string _status = string.Empty;
     private DateTime? _fromDate;
+    private string _trialFilter = string.Empty;
     private string _sort = "when";
     private bool _asc;
     private string? _paying;
+    private int? _acting;
     private StoreOptions Store => StoreAccessor.Value;
     private bool _needsSquareKeys =>
         PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
@@ -206,6 +241,15 @@
             {
                 var day = DateOnly.FromDateTime(from);
                 rows = rows.Where(o => o.PickupDate >= day);
+            }
+
+            if (_isAdmin && _trialFilter == "trial")
+            {
+                rows = rows.Where(o => o.HasTrialStay);
+            }
+            else if (_isAdmin && _trialFilter == "regular")
+            {
+                rows = rows.Where(o => !o.HasTrialStay);
             }
 
             return _sort switch
@@ -265,6 +309,47 @@
         {
             Snackbar.Add(ex.Message, Severity.Error);
         }
+    }
+
+    private async Task ApproveAsync(OrderSummary order)
+    {
+        await RunAdminActionAsync(order.Id, () => Orders.ApproveAsync(order.Id), "Order confirmed.");
+    }
+
+    private async Task RejectAsync(OrderSummary order)
+    {
+        await RunAdminActionAsync(order.Id, () => Orders.RejectAsync(order.Id), "Order rejected.");
+    }
+
+    private async Task AcceptOriginalAsync(OrderSummary order)
+    {
+        await RunAdminActionAsync(order.Id, () => Orders.AcceptOriginalStayAsync(order.Id), "Original stay accepted. It now follows the usual dog-sitting flow.");
+    }
+
+    private async Task RunAdminActionAsync(int orderId, Func<Task> action, string ok)
+    {
+        _acting = orderId;
+        try
+        {
+            await action();
+            Snackbar.Add(ok, Severity.Success);
+            _source = await Orders.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _acting = null;
+        }
+    }
+
+    private static string StayRange(DateTimeOffset start, DateTimeOffset end)
+    {
+        var dropOff = start.ToOffset(BookingPricing.SydneyOffset(start));
+        var pickUp = end.ToOffset(BookingPricing.SydneyOffset(end));
+        return $"{dropOff:ddd d MMM} – {pickUp:ddd d MMM}";
     }
 
     private async Task PayAsync(OrderSummary order)

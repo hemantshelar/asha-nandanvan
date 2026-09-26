@@ -1,4 +1,5 @@
 using AshaNandanvan.Application.Common;
+using AshaNandanvan.Application.DogSitting;
 using AshaNandanvan.Application.Offers;
 using AshaNandanvan.Infrastructure.DogSitting;
 using AshaNandanvan.Domain.Entities;
@@ -180,7 +181,32 @@ public sealed class DatabaseSeeder
                 Session(tour.Id, saturday.AddDays(14), 14));
         }
 
+        await SeedBreedsAsync(now, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task SeedBreedsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var existing = await _db.DogBreeds.Select(b => b.Name).ToListAsync(cancellationToken);
+        var known = existing.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        foreach (var name in DogBreedCatalog.All)
+        {
+            if (known.Contains(name))
+            {
+                continue;
+            }
+
+            _db.DogBreeds.Add(new DogBreed
+            {
+                Name = name,
+                IsApproved = true,
+                IsRejected = false,
+                OffersSitting = DogBreedCatalog.OffersSitting(name),
+                IsLargeBreed = DogBreedCatalog.NeedsTrial(name),
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
     }
 
     private static DateTime NextWeekday(DateTime from, DayOfWeek day)

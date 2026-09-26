@@ -43,6 +43,7 @@ public static class DependencyInjection
 
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IDogSittingService, DogSittingService>();
+        services.AddScoped<IDogBreedService, DogBreedService>();
         services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<DatabaseSeeder>();

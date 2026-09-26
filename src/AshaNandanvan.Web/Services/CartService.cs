@@ -62,6 +62,10 @@ public sealed class CartService : ICartService
         DateTimeOffset? stayStart = null,
         DateTimeOffset? stayEnd = null,
         string? petName = null,
+        string? petBreed = null,
+        bool trialStay = false,
+        DateTimeOffset? intendedStayStart = null,
+        DateTimeOffset? intendedStayEnd = null,
         CancellationToken cancellationToken = default)
     {
         await _gate.WaitAsync(cancellationToken);
@@ -84,9 +88,28 @@ public sealed class CartService : ICartService
                     throw new InvalidOperationException("Tell us the dog's name before booking.");
                 }
 
-                petName = petName.Trim();
+                if (string.IsNullOrWhiteSpace(petBreed))
+                {
+                    throw new InvalidOperationException("Tell us the dog's breed before booking.");
+                }
 
-                var availability = await _dogSitting.CheckAvailabilityAsync(stayStart.Value, stayEnd.Value, quantity, cancellationToken);
+                petName = petName.Trim();
+                petBreed = petBreed.Trim();
+                if (trialStay)
+                {
+                    stayEnd = stayStart.Value.AddDays(1);
+                    if (intendedStayStart is null || intendedStayEnd is null)
+                    {
+                        throw new InvalidOperationException("Choose the original stay dates for the trial booking.");
+                    }
+
+                    if (intendedStayEnd <= intendedStayStart)
+                    {
+                        throw new InvalidOperationException("Pick-up must be after drop-off.");
+                    }
+                }
+
+                var availability = await _dogSitting.CheckAvailabilityAsync(stayStart.Value, stayEnd.Value, quantity, cancellationToken: cancellationToken);
                 if (!availability.CanBook)
                 {
                     throw new InvalidOperationException(availability.Message);
@@ -133,6 +156,10 @@ public sealed class CartService : ICartService
                         StayStartsAt = stayStart,
                         StayEndsAt = stayEnd,
                         PetName = petName,
+                        PetBreed = petBreed,
+                        IsTrialStay = trialStay,
+                        IntendedStayStartsAt = intendedStayStart,
+                        IntendedStayEndsAt = intendedStayEnd,
                         Quantity = next
                     });
                 }
@@ -143,6 +170,10 @@ public sealed class CartService : ICartService
                     item.StayStartsAt = stayStart;
                     item.StayEndsAt = stayEnd;
                     item.PetName = petName;
+                    item.PetBreed = petBreed;
+                    item.IsTrialStay = trialStay;
+                    item.IntendedStayStartsAt = intendedStayStart;
+                    item.IntendedStayEndsAt = intendedStayEnd;
                 }
 
                 cart.UpdatedAt = DateTimeOffset.UtcNow;
@@ -160,7 +191,7 @@ public sealed class CartService : ICartService
                     EnsureStock(product.Unit, available, next);
                 }
 
-                var line = new GuestLine(productId, next, slotId, stayStart, stayEnd, petName);
+                var line = new GuestLine(productId, next, slotId, stayStart, stayEnd, petName, petBreed, trialStay, intendedStayStart, intendedStayEnd);
                 if (existing is null)
                 {
                     lines.Add(line);
@@ -335,6 +366,10 @@ public sealed class CartService : ICartService
                     StayStartsAt = line.StayStart,
                     StayEndsAt = line.StayEnd,
                     PetName = line.PetName,
+                    PetBreed = line.PetBreed,
+                    IsTrialStay = line.IsTrialStay,
+                    IntendedStayStartsAt = line.IntendedStayStart,
+                    IntendedStayEndsAt = line.IntendedStayEnd,
                     Quantity = line.Quantity
                 });
             }
@@ -345,6 +380,15 @@ public sealed class CartService : ICartService
                 {
                     existing.PetName = line.PetName;
                 }
+
+                if (!string.IsNullOrWhiteSpace(line.PetBreed))
+                {
+                    existing.PetBreed = line.PetBreed;
+                }
+
+                existing.IsTrialStay = line.IsTrialStay;
+                existing.IntendedStayStartsAt = line.IntendedStayStart;
+                existing.IntendedStayEndsAt = line.IntendedStayEnd;
             }
         }
 
@@ -403,7 +447,7 @@ public sealed class CartService : ICartService
                 }
 
                 var slot = l.SlotId is null ? null : slots.FirstOrDefault(s => s.Id == l.SlotId);
-                return ToLine(product, slot, l.Quantity, l.StayStart, l.StayEnd, l.PetName);
+                return ToLine(product, slot, l.Quantity, l.StayStart, l.StayEnd, l.PetName, l.PetBreed, l.IsTrialStay);
             })
             .Where(l => l is not null)
             .Select(l => l!)
@@ -413,12 +457,12 @@ public sealed class CartService : ICartService
     }
 
     private static CartLine ToLine(CartItem item) =>
-        ToLine(item.Product, item.ProductSlot, item.Quantity, item.StayStartsAt, item.StayEndsAt, item.PetName);
+        ToLine(item.Product, item.ProductSlot, item.Quantity, item.StayStartsAt, item.StayEndsAt, item.PetName, item.PetBreed, item.IsTrialStay);
 
-    private static CartLine ToLine(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, string? petName = null)
+    private static CartLine ToLine(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, string? petName = null, string? petBreed = null, bool trialStay = false)
     {
         var label = stayStart is not null && stayEnd is not null
-            ? BookingPricing.StayLabel(stayStart.Value, stayEnd.Value, petName)
+            ? BookingPricing.StayLabel(stayStart.Value, stayEnd.Value, petName, petBreed, trialStay)
             : slot is null ? null : BookingPricing.SlotLabel(slot, product.Category);
 
         return new(
@@ -427,7 +471,7 @@ public sealed class CartService : ICartService
             product.Name,
             product.Slug,
             product.Unit,
-            BookingPricing.UnitPrice(product, slot, stayStart, stayEnd),
+            BookingPricing.UnitPrice(product, slot, stayStart, stayEnd, trialStay),
             quantity,
             slot?.Remaining ?? product.Stock,
             product.ImagePath,
@@ -507,5 +551,9 @@ public sealed class CartService : ICartService
         int? SlotId = null,
         DateTimeOffset? StayStart = null,
         DateTimeOffset? StayEnd = null,
-        string? PetName = null);
+        string? PetName = null,
+        string? PetBreed = null,
+        bool IsTrialStay = false,
+        DateTimeOffset? IntendedStayStart = null,
+        DateTimeOffset? IntendedStayEnd = null);
 }

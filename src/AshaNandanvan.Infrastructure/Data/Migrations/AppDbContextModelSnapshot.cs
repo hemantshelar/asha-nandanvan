@@ -55,6 +55,10 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<Guid>("CartId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<string>("PetBreed")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("PetName")
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
@@ -67,6 +71,15 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsTrialStay")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("IntendedStayEndsAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("IntendedStayStartsAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<DateTimeOffset?>("StayEndsAt")
                         .HasColumnType("datetimeoffset");
@@ -89,6 +102,47 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                         .HasFilter("[ProductSlotId] IS NOT NULL");
 
                     b.ToTable("CartItems");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.DogBreed", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<bool>("IsApproved")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLargeBreed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsRejected")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<bool>("OffersSitting")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.HasIndex("IsApproved", "IsRejected", "Name");
+
+                    b.ToTable("DogBreeds");
                 });
 
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.DogSittingSettings", b =>
@@ -250,6 +304,10 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<int>("OrderId")
                         .HasColumnType("int");
 
+                    b.Property<string>("PetBreed")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
                     b.Property<string>("PetName")
                         .HasMaxLength(80)
                         .HasColumnType("nvarchar(80)");
@@ -267,6 +325,15 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
                     b.Property<int>("Quantity")
                         .HasColumnType("int");
+
+                    b.Property<bool>("IsTrialStay")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("IntendedStayEndsAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset?>("IntendedStayStartsAt")
+                        .HasColumnType("datetimeoffset");
 
                     b.Property<string>("SlotLabel")
                         .HasMaxLength(160)

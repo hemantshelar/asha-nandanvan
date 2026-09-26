@@ -19,6 +19,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<DogSittingSettings> DogSittingSettings => Set<DogSittingSettings>();
     public DbSet<MediaItem> MediaItems => Set<MediaItem>();
+    public DbSet<DogBreed> DogBreeds => Set<DogBreed>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -66,6 +67,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(i => i.ProductSlotId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.Property(i => i.PetName).HasMaxLength(80);
+            entity.Property(i => i.PetBreed).HasMaxLength(80);
+            entity.Property(i => i.IsTrialStay).IsRequired();
         });
 
         builder.Entity<Order>(entity =>
@@ -94,6 +97,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
                 .HasForeignKey(i => i.ProductSlotId)
                 .OnDelete(DeleteBehavior.Restrict);
             entity.Property(i => i.PetName).HasMaxLength(80);
+            entity.Property(i => i.PetBreed).HasMaxLength(80);
+            entity.Property(i => i.IsTrialStay).IsRequired();
         });
 
         builder.Entity<DogSittingSettings>(entity =>
@@ -111,6 +116,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(m => m.YouTubeVideoId).HasMaxLength(20).IsRequired();
             entity.HasIndex(m => new { m.IsPublished, m.OfferSlug, m.SortOrder });
             entity.HasIndex(m => new { m.OfferSlug, m.YouTubeVideoId }).IsUnique();
+        });
+
+        builder.Entity<DogBreed>(entity =>
+        {
+            entity.Property(b => b.Name).HasMaxLength(80).IsRequired();
+            entity.Property(b => b.OffersSitting).IsRequired();
+            entity.HasIndex(b => b.Name).IsUnique();
+            entity.HasIndex(b => new { b.IsApproved, b.IsRejected, b.Name });
         });
     }
 }

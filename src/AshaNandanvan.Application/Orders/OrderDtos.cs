@@ -26,7 +26,30 @@ public sealed record OrderSummary(
     string? PaymentReference = null,
     string PaymentProvider = "")
 {
-    public bool CanPay => Status.IsUnpaid();
+    public bool CanPay =>
+        Status.IsUnpaid()
+        && string.IsNullOrWhiteSpace(PaymentReference)
+        && !HasTrialStay;
+
+    public bool HasTrialStay => Items.Any(i => i.IsTrialStay);
+
+    public bool TrialStayCompleted =>
+        HasTrialStay
+        && (Status == OrderStatus.Completed
+            || Items.Any(i => i.IsTrialStay && i.StayEndsAt is DateTimeOffset end && end <= DateTimeOffset.UtcNow));
+
+    public bool CanAcceptOriginalStay =>
+        TrialStayCompleted
+        && !Status.IsClosed()
+        && Items.Any(i => i.IsTrialStay && i.IntendedStayStartsAt is not null && i.IntendedStayEndsAt is not null);
+
+    public bool CanApprove =>
+        !HasTrialStay && Status.AwaitsDecision();
+
+    public bool CanReject =>
+        HasTrialStay
+            ? TrialStayCompleted && !Status.IsClosed()
+            : Status.AwaitsDecision() || Status == OrderStatus.Confirmed;
 }
 
 public sealed record OrderLineSummary(
@@ -34,4 +57,8 @@ public sealed record OrderLineSummary(
     string Unit,
     int Quantity,
     decimal UnitPrice,
-    string? SlotLabel = null);
+    string? SlotLabel = null,
+    bool IsTrialStay = false,
+    DateTimeOffset? StayEndsAt = null,
+    DateTimeOffset? IntendedStayStartsAt = null,
+    DateTimeOffset? IntendedStayEndsAt = null);

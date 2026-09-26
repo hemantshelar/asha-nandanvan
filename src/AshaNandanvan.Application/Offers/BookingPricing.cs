@@ -13,8 +13,13 @@ public static class BookingPricing
 
     public static int NightCount(ProductSlot slot) => NightCount(slot.StartsAt, slot.EndsAt);
 
-    public static decimal LineTotal(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null)
+    public static decimal LineTotal(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, bool trialStay = false)
     {
+        if (trialStay)
+        {
+            return 0;
+        }
+
         if (product.Category == ProductCategory.DogSitting && stayStart is not null && stayEnd is not null)
         {
             return product.Price * NightCount(stayStart.Value, stayEnd.Value) * quantity;
@@ -28,8 +33,13 @@ public static class BookingPricing
         return product.Price * quantity;
     }
 
-    public static decimal UnitPrice(Product product, ProductSlot? slot, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null)
+    public static decimal UnitPrice(Product product, ProductSlot? slot, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, bool trialStay = false)
     {
+        if (trialStay)
+        {
+            return 0;
+        }
+
         if (product.Category == ProductCategory.DogSitting && stayStart is not null && stayEnd is not null)
         {
             return product.Price * NightCount(stayStart.Value, stayEnd.Value);
@@ -40,13 +50,19 @@ public static class BookingPricing
             : product.Price;
     }
 
-    public static string StayLabel(DateTimeOffset dropOff, DateTimeOffset pickUp, string? petName = null)
+    public static string StayLabel(DateTimeOffset dropOff, DateTimeOffset pickUp, string? petName = null, string? petBreed = null, bool trialStay = false)
     {
         var start = dropOff.ToOffset(SydneyOffset(dropOff));
         var end = pickUp.ToOffset(SydneyOffset(pickUp));
         var nights = NightCount(dropOff, pickUp);
         var dates = $"Drop-off {start:ddd d MMM, h:mm tt} · Pick-up {end:ddd d MMM, h:mm tt} · {nights} night{(nights == 1 ? "" : "s")}";
-        return string.IsNullOrWhiteSpace(petName) ? dates : $"{petName.Trim()} · {dates}";
+        if (trialStay)
+        {
+            dates = $"Free trial night · {dates}";
+        }
+
+        var who = string.Join(" · ", new[] { petName?.Trim(), petBreed?.Trim() }.Where(part => !string.IsNullOrWhiteSpace(part)));
+        return string.IsNullOrWhiteSpace(who) ? dates : $"{who} · {dates}";
     }
 
     public static string SlotLabel(ProductSlot slot, ProductCategory category)

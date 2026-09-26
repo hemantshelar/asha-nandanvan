@@ -46,11 +46,35 @@
                             {
                                 <text> (@line.SlotLabel)</text>
                             }
+                            @if (line.IsTrialStay && line.IntendedStayStartsAt is not null && line.IntendedStayEndsAt is not null)
+                            {
+                                <div class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</div>
+                            }
                             — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)
                         </li>
                     }
                 </ul>
                 <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+                @if (_order.CanAcceptOriginalStay)
+                {
+                    <div class="checkout__actions">
+                        <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="AcceptOriginalAsync">Accept original booking</button>
+                        <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
+                    </div>
+                }
+                else if (_order.CanApprove || _order.CanReject)
+                {
+                    <div class="checkout__actions">
+                        @if (_order.CanApprove)
+                        {
+                            <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="ApproveAsync">Approve</button>
+                        }
+                        @if (_order.CanReject)
+                        {
+                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
+                        }
+                    </div>
+                }
                 @if (_order.CanPay)
                 {
                     <div class="checkout__actions">
@@ -101,6 +125,46 @@
 
         _payUrl = Navigation.ToAbsoluteUri($"/pay/{_order.OrderNumber}").ToString();
         _qrUri = QrImages.PngDataUri(_payUrl);
+    }
+
+    private async Task ApproveAsync() =>
+        await RunAsync(() => Orders.ApproveAsync(_order!.Id), "Order confirmed.");
+
+    private async Task RejectAsync() =>
+        await RunAsync(() => Orders.RejectAsync(_order!.Id), "Order rejected.");
+
+    private async Task AcceptOriginalAsync() =>
+        await RunAsync(() => Orders.AcceptOriginalStayAsync(_order!.Id), "Original stay accepted. It now follows the usual dog-sitting flow.");
+
+    private async Task RunAsync(Func<Task> action, string ok)
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await action();
+            Snackbar.Add(ok, Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string StayRange(DateTimeOffset start, DateTimeOffset end)
+    {
+        var dropOff = start.ToOffset(BookingPricing.SydneyOffset(start));
+        var pickUp = end.ToOffset(BookingPricing.SydneyOffset(end));
+        return $"{dropOff:ddd d MMM} – {pickUp:ddd d MMM}";
     }
 
     private async Task MarkCashAsync()

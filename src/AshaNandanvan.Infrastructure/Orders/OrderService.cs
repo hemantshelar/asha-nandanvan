@@ -53,7 +53,7 @@ public sealed class OrderService : IOrderService
                     item.StayStartsAt.Value,
                     item.StayEndsAt.Value,
                     item.Quantity,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
                 if (!availability.CanBook)
                 {
                     throw new InvalidOperationException(availability.Message);
@@ -88,7 +88,7 @@ public sealed class OrderService : IOrderService
             PickupDate = request.PickupDate,
             PickupWindow = request.PickupWindow,
             Status = payNow ? OrderStatus.PendingPayment : OrderStatus.Placed,
-            Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt)),
+            Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay)),
             PaymentProvider = string.Empty,
             CreatedAt = now,
             UpdatedAt = now,
@@ -98,13 +98,17 @@ public sealed class OrderService : IOrderService
                 ProductName = i.Product.Name,
                 Unit = i.Product.Unit,
                 Quantity = i.Quantity,
-                UnitPrice = BookingPricing.UnitPrice(i.Product, i.ProductSlot, i.StayStartsAt, i.StayEndsAt),
+                UnitPrice = BookingPricing.UnitPrice(i.Product, i.ProductSlot, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay),
                 ProductSlotId = i.ProductSlotId,
                 StayStartsAt = i.StayStartsAt,
                 StayEndsAt = i.StayEndsAt,
                 PetName = i.PetName,
+                PetBreed = i.PetBreed,
+                IsTrialStay = i.IsTrialStay,
+                IntendedStayStartsAt = i.IntendedStayStartsAt,
+                IntendedStayEndsAt = i.IntendedStayEndsAt,
                 SlotLabel = i.StayStartsAt is not null && i.StayEndsAt is not null
-                    ? BookingPricing.StayLabel(i.StayStartsAt.Value, i.StayEndsAt.Value, i.PetName)
+                    ? BookingPricing.StayLabel(i.StayStartsAt.Value, i.StayEndsAt.Value, i.PetName, i.PetBreed, i.IsTrialStay)
                     : i.ProductSlot is null ? null : BookingPricing.SlotLabel(i.ProductSlot, i.Product.Category)
             }).ToList()
         };
@@ -168,10 +172,11 @@ public sealed class OrderService : IOrderService
         {
             await MarkPaidCoreAsync(db, order, "admin", "Admin", cancellationToken);
         }
-        else if (status == OrderStatus.Cancelled && order.Status == OrderStatus.Placed)
+        else if (status is OrderStatus.Cancelled or OrderStatus.Rejected
+            && order.Status is OrderStatus.Placed or OrderStatus.Paid or OrderStatus.Confirmed or OrderStatus.ReadyForPickup)
         {
             await RestoreInventoryAsync(db, order, cancellationToken);
-            order.Status = OrderStatus.Cancelled;
+            order.Status = status;
             order.UpdatedAt = DateTimeOffset.UtcNow;
         }
         else
@@ -180,6 +185,84 @@ public sealed class OrderService : IOrderService
             order.UpdatedAt = DateTimeOffset.UtcNow;
         }
 
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task ApproveAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var hasTrial = await db.OrderItems.AnyAsync(i => i.OrderId == orderId && i.IsTrialStay, cancellationToken);
+        if (hasTrial)
+        {
+            throw new InvalidOperationException("Finish the trial night, then accept the original booking or reject it.");
+        }
+
+        await UpdateStatusAsync(orderId, OrderStatus.Confirmed, cancellationToken);
+    }
+
+    public Task RejectAsync(int orderId, CancellationToken cancellationToken = default) =>
+        UpdateStatusAsync(orderId, OrderStatus.Rejected, cancellationToken);
+
+    public async Task AcceptOriginalStayAsync(int orderId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders
+            .Include(o => o.Items)
+            .ThenInclude(i => i.Product)
+            .FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+            ?? throw new InvalidOperationException("Order was not found.");
+
+        var summary = ToSummary(order);
+        if (!summary.CanAcceptOriginalStay)
+        {
+            throw new InvalidOperationException("The trial night must finish before the original stay can be accepted.");
+        }
+
+        foreach (var line in order.Items.Where(i => i.IsTrialStay))
+        {
+            if (line.IntendedStayStartsAt is null || line.IntendedStayEndsAt is null)
+            {
+                throw new InvalidOperationException("This trial has no original stay dates stored.");
+            }
+
+            var availability = await _dogSitting.CheckAvailabilityAsync(
+                line.IntendedStayStartsAt.Value,
+                line.IntendedStayEndsAt.Value,
+                line.Quantity,
+                allowPastDropOff: true,
+                cancellationToken: cancellationToken);
+            if (!availability.CanBook)
+            {
+                throw new InvalidOperationException(availability.Message);
+            }
+
+            line.StayStartsAt = line.IntendedStayStartsAt;
+            line.StayEndsAt = line.IntendedStayEndsAt;
+            line.IsTrialStay = false;
+            line.UnitPrice = BookingPricing.UnitPrice(
+                line.Product,
+                line.ProductSlot,
+                line.StayStartsAt,
+                line.StayEndsAt);
+            line.SlotLabel = BookingPricing.StayLabel(
+                line.StayStartsAt.Value,
+                line.StayEndsAt.Value,
+                line.PetName,
+                line.PetBreed);
+        }
+
+        var firstStay = order.Items.FirstOrDefault(i => i.StayStartsAt is not null);
+        if (firstStay?.StayStartsAt is DateTimeOffset dropOff)
+        {
+            var sydney = dropOff.ToOffset(BookingPricing.SydneyOffset(dropOff));
+            order.PickupDate = DateOnly.FromDateTime(sydney.DateTime);
+        }
+
+        order.Total = order.Items.Sum(i => i.UnitPrice * i.Quantity);
+        order.Status = string.IsNullOrWhiteSpace(order.PaymentReference)
+            ? OrderStatus.Placed
+            : OrderStatus.Paid;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
 
@@ -230,7 +313,10 @@ public sealed class OrderService : IOrderService
             await ReserveInventoryAsync(db, order, cancellationToken);
         }
 
-        order.Status = OrderStatus.Paid;
+        if (order.Status != OrderStatus.Confirmed)
+        {
+            order.Status = OrderStatus.Paid;
+        }
         order.PaymentReference = paymentReference;
         if (!string.IsNullOrWhiteSpace(provider))
         {
@@ -268,7 +354,7 @@ public sealed class OrderService : IOrderService
                     line.StayStartsAt.Value,
                     line.StayEndsAt.Value,
                     line.Quantity,
-                    cancellationToken);
+                    cancellationToken: cancellationToken);
                 if (!availability.CanBook)
                 {
                     throw new InvalidOperationException(availability.Message);
@@ -314,7 +400,16 @@ public sealed class OrderService : IOrderService
             order.CustomerEmail,
             order.Phone,
             order.CreatedAt,
-            order.Items.Select(i => new OrderLineSummary(i.ProductName, i.Unit, i.Quantity, i.UnitPrice, i.SlotLabel)).ToList(),
+            order.Items.Select(i => new OrderLineSummary(
+                i.ProductName,
+                i.Unit,
+                i.Quantity,
+                i.UnitPrice,
+                i.SlotLabel,
+                i.IsTrialStay,
+                i.StayEndsAt,
+                i.IntendedStayStartsAt,
+                i.IntendedStayEndsAt)).ToList(),
             order.PaymentReference,
             order.PaymentProvider);
 }

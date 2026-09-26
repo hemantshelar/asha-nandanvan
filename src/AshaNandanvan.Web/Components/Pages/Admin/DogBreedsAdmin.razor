@@ -1,0 +1,210 @@
+@page "/admin/breeds"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IDogBreedService Breeds
+@inject ISnackbar Snackbar
+
+<PageTitle>Dog breeds — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <div class="page-hero__row">
+            <h1>Breeds</h1>
+        </div>
+        <p class="lede">Add, rename, or remove breeds. New names typed at booking show as Pending until you approve them.</p>
+    </div>
+</section>
+
+<section class="shell">
+    <form class="admin-form breed-admin__add" @onsubmit="AddAsync" @onsubmit:preventDefault>
+        <label>
+            Add a breed
+            <input @bind="_newName" maxlength="80" placeholder="e.g. Red Heeler" required />
+        </label>
+        <label class="check">
+            <input type="checkbox" @bind="_newOffersSitting" />
+            We sit this breed
+        </label>
+        <label class="check">
+            <input type="checkbox" @bind="_newIsLarge" />
+            Large — trial if over 5 nights
+        </label>
+        <button class="btn btn--solid" type="submit" disabled="@_busy">Add</button>
+    </form>
+
+    @if (_items.Count == 0)
+    {
+        <p class="muted">No breeds in the table yet. Restart the app so the seed can run.</p>
+    }
+    else
+    {
+        <table class="cart-table">
+            <thead>
+                <tr>
+                    <th>Breed</th>
+                    <th>Status</th>
+                    <th>We sit</th>
+                    <th>Large</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var breed in _items)
+                {
+                    <tr>
+                        <td>
+                            @if (_editId == breed.Id)
+                            {
+                                <input class="breed-admin__input" @bind="_editName" maxlength="80" />
+                            }
+                            else
+                            {
+                                @breed.Name
+                            }
+                        </td>
+                        <td>@breed.Status</td>
+                        <td>
+                            @if (_editId == breed.Id)
+                            {
+                                <label class="check">
+                                    <input type="checkbox" @bind="_editOffersSitting" />
+                                    We sit
+                                </label>
+                            }
+                            else
+                            {
+                                @(breed.OffersSitting ? "Yes" : "No")
+                            }
+                        </td>
+                        <td>
+                            @if (_editId == breed.Id)
+                            {
+                                <label class="check">
+                                    <input type="checkbox" @bind="_editIsLarge" />
+                                    Large
+                                </label>
+                            }
+                            else
+                            {
+                                @(breed.IsLargeBreed ? "Yes" : "No")
+                            }
+                        </td>
+                        <td class="stay-breed-actions">
+                            @if (_editId == breed.Id)
+                            {
+                                <button type="button" class="text-link" disabled="@_busy" @onclick="SaveEditAsync">Save</button>
+                                <button type="button" class="text-link" disabled="@_busy" @onclick="CancelEdit">Cancel</button>
+                            }
+                            else
+                            {
+                                <button type="button" class="text-link" disabled="@_busy" @onclick="() => StartEdit(breed)">Edit</button>
+                                @if (!breed.IsApproved)
+                                {
+                                    <button type="button" class="text-link" disabled="@_busy" @onclick="() => ApproveAsync(breed.Id)">Approve</button>
+                                }
+                                @if (!breed.IsRejected)
+                                {
+                                    <button type="button" class="text-link" disabled="@_busy" @onclick="() => RejectAsync(breed.Id)">Decline</button>
+                                }
+                                <button type="button" class="text-link" disabled="@_busy" @onclick="() => DeleteAsync(breed.Id)">Delete</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<DogBreedReviewItem> _items = [];
+    private string _newName = string.Empty;
+    private bool _newOffersSitting = true;
+    private bool _newIsLarge;
+    private int? _editId;
+    private string _editName = string.Empty;
+    private bool _editOffersSitting = true;
+    private bool _editIsLarge;
+    private bool _busy;
+
+    protected override Task OnInitializedAsync() => ReloadAsync();
+
+    private async Task ReloadAsync() =>
+        _items = await Breeds.ListForReviewAsync();
+
+    private void StartEdit(DogBreedReviewItem breed)
+    {
+        _editId = breed.Id;
+        _editName = breed.Name;
+        _editOffersSitting = breed.OffersSitting;
+        _editIsLarge = breed.IsLargeBreed;
+    }
+
+    private void CancelEdit()
+    {
+        _editId = null;
+        _editName = string.Empty;
+    }
+
+    private Task AddAsync() => RunAsync(async () =>
+    {
+        await Breeds.CreateAsync(_newName, offersSitting: _newOffersSitting, isLargeBreed: _newIsLarge);
+        _newName = string.Empty;
+        _newOffersSitting = true;
+        _newIsLarge = false;
+        Snackbar.Add("Breed added to the booking list.", Severity.Success);
+    });
+
+    private Task SaveEditAsync() => RunAsync(async () =>
+    {
+        if (_editId is not int id)
+        {
+            return;
+        }
+
+        await Breeds.UpdateAsync(id, _editName, _editOffersSitting, _editIsLarge);
+        CancelEdit();
+        Snackbar.Add("Breed updated.", Severity.Success);
+    });
+
+    private Task ApproveAsync(int id) => RunAsync(async () =>
+    {
+        await Breeds.ApproveAsync(id);
+        Snackbar.Add("Breed approved.", Severity.Success);
+    });
+
+    private Task RejectAsync(int id) => RunAsync(async () =>
+    {
+        await Breeds.RejectAsync(id);
+        Snackbar.Add("Breed declined.", Severity.Success);
+    });
+
+    private Task DeleteAsync(int id) => RunAsync(async () =>
+    {
+        if (_editId == id)
+        {
+            CancelEdit();
+        }
+
+        await Breeds.DeleteAsync(id);
+        Snackbar.Add("Breed deleted.", Severity.Success);
+    });
+
+    private async Task RunAsync(Func<Task> work)
+    {
+        _busy = true;
+        try
+        {
+            await work();
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

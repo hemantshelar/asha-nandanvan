@@ -16,5 +16,9 @@ public class OrderItem
     public DateTimeOffset? StayStartsAt { get; set; }
     public DateTimeOffset? StayEndsAt { get; set; }
     public string? PetName { get; set; }
+    public string? PetBreed { get; set; }
+    public bool IsTrialStay { get; set; }
+    public DateTimeOffset? IntendedStayStartsAt { get; set; }
+    public DateTimeOffset? IntendedStayEndsAt { get; set; }
     public string? SlotLabel { get; set; }
 }

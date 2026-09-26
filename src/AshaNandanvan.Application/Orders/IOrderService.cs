@@ -9,6 +9,9 @@ public interface IOrderService
     Task<IReadOnlyList<OrderSummary>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OrderSummary>> GetMineAsync(string userId, CancellationToken cancellationToken = default);
     Task UpdateStatusAsync(int orderId, OrderStatus status, CancellationToken cancellationToken = default);
+    Task ApproveAsync(int orderId, CancellationToken cancellationToken = default);
+    Task RejectAsync(int orderId, CancellationToken cancellationToken = default);
+    Task AcceptOriginalStayAsync(int orderId, CancellationToken cancellationToken = default);
     Task MarkPaidAsync(string orderNumber, string paymentReference, string? provider = null, CancellationToken cancellationToken = default);
     Task AttachPaymentSessionAsync(string orderNumber, string provider, string? reference, CancellationToken cancellationToken = default);
 }

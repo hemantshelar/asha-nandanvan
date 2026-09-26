@@ -31,7 +31,15 @@
             <p>@Store.PickupAddress</p>
             @if (_order.Status == OrderStatus.Placed)
             {
-                <p>Pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+                <p>The order is waiting for us to approve it. Once confirmed, pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+            }
+            else if (_order.Status == OrderStatus.Confirmed && _order.CanPay)
+            {
+                <p>This order is confirmed. Pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+            }
+            else if (_order.Status == OrderStatus.Rejected)
+            {
+                <p>This order was rejected. Get in touch if you need another date.</p>
             }
             else if (_order.CanPay)
             {
