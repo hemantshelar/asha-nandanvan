@@ -26,6 +26,12 @@ param googleClientId string = ''
 param googleClientSecret string = ''
 
 @secure()
+param facebookAppId string = ''
+
+@secure()
+param facebookAppSecret string = ''
+
+@secure()
 param squareApplicationId string = ''
 
 @secure()
@@ -81,6 +87,8 @@ module web 'modules/webapp.bicep' = {
     sqlConnectionString: sql.outputs.adoConnectionString
     googleClientId: googleClientId
     googleClientSecret: googleClientSecret
+    facebookAppId: facebookAppId
+    facebookAppSecret: facebookAppSecret
     squareApplicationId: squareApplicationId
     squareAccessToken: squareAccessToken
     squareLocationId: squareLocationId

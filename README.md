@@ -138,7 +138,7 @@ Facebook App settings (required for Live / App Review):
 - Privacy policy URL: `https://www.ashanandanvan.com.au/privacy`
 - User data deletion URL: `https://www.ashanandanvan.com.au/data-deletion`
 
-On Azure, add `FacebookAuth__AppId` and `FacebookAuth__AppSecret` next to the Google settings.
+On Azure, Bicep sets `FacebookAuth__AppId` and `FacebookAuth__AppSecret` from GitHub environment secrets `FACEBOOK_APP_ID` and `FACEBOOK_APP_SECRET` (same `dev` environment as Google).
 
 If you change `MSSQL_SA_PASSWORD` in `.env`, update the **https (Docker SQL)** launch profile or run `export-docker-env.ps1` so the host uses the same password.
 
@@ -171,7 +171,7 @@ Custom domain, Cheaper Domains DNS, and the free Azure managed certificate are d
 1. `az login`
 2. Run `infra/scripts/setup-github-oidc.ps1`
 3. In GitHub: **Settings → Environments → New environment → `dev`**
-4. Add the **environment secrets** the script prints on `dev` (Azure IDs, SQL admin group, Google, Square, admin email)
-5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google` plus the custom-domain URIs in the domain guide
+4. Add the **environment secrets** the script prints on `dev` (Azure IDs, SQL admin group, Google, Facebook, Square, admin email)
+5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google` plus the custom-domain URIs in the domain guide. In Meta, add the matching `/signin-facebook` URIs.
 
 The script creates Entra group `ashanandanvan-sql-admins-dev` (you + the GitHub app) and Bicep sets that group as the SQL Entra admin so the pipeline can grant the web app's managed identity `db_owner`.

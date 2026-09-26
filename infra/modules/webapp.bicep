@@ -8,6 +8,10 @@ param googleClientId string = ''
 @secure()
 param googleClientSecret string = ''
 @secure()
+param facebookAppId string = ''
+@secure()
+param facebookAppSecret string = ''
+@secure()
 param squareApplicationId string = ''
 @secure()
 param squareAccessToken string = ''
@@ -85,6 +89,14 @@ resource webApp 'Microsoft.Web/sites@2024-04-01' = {
         {
           name: 'GoogleAuth__ClientSecret'
           value: googleClientSecret
+        }
+        {
+          name: 'FacebookAuth__AppId'
+          value: facebookAppId
+        }
+        {
+          name: 'FacebookAuth__AppSecret'
+          value: facebookAppSecret
         }
         {
           name: 'Payment__Provider'

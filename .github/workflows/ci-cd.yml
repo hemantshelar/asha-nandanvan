@@ -99,6 +99,8 @@ jobs:
           SQL_ENTRA_ADMIN_OBJECT_ID: ${{ secrets.SQL_ENTRA_ADMIN_OBJECT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
           SQUARE_APPLICATION_ID: ${{ secrets.SQUARE_APPLICATION_ID }}
           SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
           SQUARE_LOCATION_ID: ${{ secrets.SQUARE_LOCATION_ID }}
@@ -113,6 +115,8 @@ jobs:
           sqlEntraAdminObjectId="$SQL_ENTRA_ADMIN_OBJECT_ID"
           googleClientId="$GOOGLE_CLIENT_ID"
           googleClientSecret="$GOOGLE_CLIENT_SECRET"
+          facebookAppId="$FACEBOOK_APP_ID"
+          facebookAppSecret="$FACEBOOK_APP_SECRET"
           squareApplicationId="$SQUARE_APPLICATION_ID"
           squareAccessToken="$SQUARE_ACCESS_TOKEN"
           squareLocationId="$SQUARE_LOCATION_ID"
@@ -125,6 +129,8 @@ jobs:
           SQL_ENTRA_ADMIN_OBJECT_ID: ${{ secrets.SQL_ENTRA_ADMIN_OBJECT_ID }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          FACEBOOK_APP_ID: ${{ secrets.FACEBOOK_APP_ID }}
+          FACEBOOK_APP_SECRET: ${{ secrets.FACEBOOK_APP_SECRET }}
           SQUARE_APPLICATION_ID: ${{ secrets.SQUARE_APPLICATION_ID }}
           SQUARE_ACCESS_TOKEN: ${{ secrets.SQUARE_ACCESS_TOKEN }}
           SQUARE_LOCATION_ID: ${{ secrets.SQUARE_LOCATION_ID }}
@@ -139,6 +145,8 @@ jobs:
             sqlEntraAdminObjectId="$SQL_ENTRA_ADMIN_OBJECT_ID" \
             googleClientId="$GOOGLE_CLIENT_ID" \
             googleClientSecret="$GOOGLE_CLIENT_SECRET" \
+            facebookAppId="$FACEBOOK_APP_ID" \
+            facebookAppSecret="$FACEBOOK_APP_SECRET" \
             squareApplicationId="$SQUARE_APPLICATION_ID" \
             squareAccessToken="$SQUARE_ACCESS_TOKEN" \
             squareLocationId="$SQUARE_LOCATION_ID" \
