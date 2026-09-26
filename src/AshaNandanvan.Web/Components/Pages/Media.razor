@@ -6,16 +6,16 @@
 <PageTitle>Media — Asha Nandanvan</PageTitle>
 
 <section class="page-hero">
-    <div class="shell section-head">
-        <div>
-            <p class="eyebrow">From the backyard</p>
-            <h1>Media</h1>
+    <div class="shell">
+        <p class="eyebrow">From the backyard</p>
+        <h1>Media</h1>
+        <div class="media-hero__row">
             <p class="lede">Clips from the garden, grouped the same way as what we offer.</p>
+            @if (_isAdmin)
+            {
+                <button class="btn btn--solid" type="button" @onclick="StartAdd">Add clip</button>
+            }
         </div>
-        @if (_isAdmin)
-        {
-            <button class="btn btn--solid" type="button" @onclick="StartAdd">Add clip</button>
-        }
     </div>
 </section>
 
