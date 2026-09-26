@@ -23,7 +23,6 @@
             <nav class="nav nav--desktop" aria-label="Primary">
                 <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
                 <NavLink href="/how-we-live">How we live</NavLink>
-                <NavLink href="/shop">Shop</NavLink>
                 <NavLink href="/visit">Visit</NavLink>
                 <AuthorizeView Roles="@AppRoles.Admin">
                     <NavLink href="/admin/products">Admin</NavLink>
@@ -59,7 +58,6 @@
                 <nav class="nav nav--mobile" aria-label="Mobile">
                     <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
                     <NavLink href="/how-we-live" @onclick="CloseMenu">How we live</NavLink>
-                    <NavLink href="/shop" @onclick="CloseMenu">Shop</NavLink>
                     <NavLink href="/visit" @onclick="CloseMenu">Visit</NavLink>
                     <AuthorizeView Roles="@AppRoles.Admin">
                         <NavLink href="/admin/products" @onclick="CloseMenu">Admin</NavLink>
@@ -74,6 +72,7 @@
         <div class="admin-tabs">
             <div class="shell admin-tabs__inner">
                 <NavLink href="/admin/products">Products</NavLink>
+                <NavLink href="/admin/dog-sitting">Dog sitting</NavLink>
                 <NavLink href="/admin/orders">Orders</NavLink>
             </div>
         </div>
@@ -95,7 +94,7 @@
             </div>
             <div>
                 <a href="@Store.Value.FacebookUrl" target="_blank" rel="noreferrer">Facebook</a>
-                <a href="/shop">Shop the backyard</a>
+                <a href="/#offers">What we offer</a>
             </div>
         </div>
     </footer>

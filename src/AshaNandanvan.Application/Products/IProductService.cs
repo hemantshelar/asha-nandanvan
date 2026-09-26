@@ -5,9 +5,13 @@ namespace AshaNandanvan.Application.Products;
 public interface IProductService
 {
     Task<IReadOnlyList<ProductListItem>> GetActiveAsync(ProductCategory? category = null, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProductListItem>> GetActiveByOfferAsync(string offerSlug, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<ProductListItem>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<ProductListItem?> GetBySlugAsync(string slug, CancellationToken cancellationToken = default);
     Task<ProductListItem?> GetByIdAsync(int id, CancellationToken cancellationToken = default);
     Task<int> CreateAsync(ProductEditModel model, CancellationToken cancellationToken = default);
     Task UpdateAsync(ProductEditModel model, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<ProductSlotItem>> GetSlotsAsync(int productId, bool upcomingOnly = true, CancellationToken cancellationToken = default);
+    Task<int> CreateSlotAsync(ProductSlotEditModel model, CancellationToken cancellationToken = default);
+    Task DeactivateSlotAsync(int slotId, CancellationToken cancellationToken = default);
 }

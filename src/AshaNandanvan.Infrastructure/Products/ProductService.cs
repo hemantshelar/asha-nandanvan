@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using AshaNandanvan.Application.Offers;
 using AshaNandanvan.Application.Products;
 using AshaNandanvan.Domain.Entities;
 using AshaNandanvan.Domain.Enums;
@@ -25,6 +26,20 @@ public sealed class ProductService : IProductService
         }
 
         var products = await query.OrderBy(p => p.Category).ThenBy(p => p.Name).ToListAsync(cancellationToken);
+        return products.Select(ToListItem).ToList();
+    }
+
+    public async Task<IReadOnlyList<ProductListItem>> GetActiveByOfferAsync(string offerSlug, CancellationToken cancellationToken = default)
+    {
+        var offer = OfferCatalog.Find(offerSlug)
+            ?? throw new InvalidOperationException("That offer was not found.");
+        var categories = offer.Categories.ToList();
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var products = await db.Products.AsNoTracking()
+            .Where(p => p.IsActive && categories.Contains(p.Category))
+            .OrderBy(p => p.Category).ThenBy(p => p.Name)
+            .ToListAsync(cancellationToken);
         return products.Select(ToListItem).ToList();
     }
 
@@ -125,6 +140,80 @@ public sealed class ProductService : IProductService
         return string.IsNullOrEmpty(slug) ? "product" : slug;
     }
 
+    public async Task<IReadOnlyList<ProductSlotItem>> GetSlotsAsync(int productId, bool upcomingOnly = true, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var query = db.ProductSlots.AsNoTracking().Where(s => s.ProductId == productId && s.IsActive);
+        if (upcomingOnly)
+        {
+            var now = DateTimeOffset.UtcNow;
+            query = query.Where(s => s.EndsAt > now);
+        }
+
+        var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId, cancellationToken);
+        var slots = await query.OrderBy(s => s.StartsAt).ToListAsync(cancellationToken);
+        return slots.Select(s => ToSlotItem(s, product?.Category ?? ProductCategory.CompostTour)).ToList();
+    }
+
+    public async Task<int> CreateSlotAsync(ProductSlotEditModel model, CancellationToken cancellationToken = default)
+    {
+        if (model.EndsAt <= model.StartsAt)
+        {
+            throw new InvalidOperationException("The booking must end after it starts.");
+        }
+
+        if (model.Capacity < 1)
+        {
+            throw new InvalidOperationException("Capacity must be at least 1.");
+        }
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var product = await db.Products.FirstOrDefaultAsync(p => p.Id == model.ProductId, cancellationToken)
+            ?? throw new InvalidOperationException("Product was not found.");
+
+        if (!product.Category.RequiresBooking())
+        {
+            throw new InvalidOperationException("Only dog sitting and tours use booking dates.");
+        }
+
+        var slot = new ProductSlot
+        {
+            ProductId = product.Id,
+            StartsAt = model.StartsAt,
+            EndsAt = model.EndsAt,
+            Capacity = model.Capacity,
+            BookedCount = 0,
+            Label = string.IsNullOrWhiteSpace(model.Label) ? null : model.Label.Trim(),
+            IsActive = true
+        };
+
+        db.ProductSlots.Add(slot);
+        await db.SaveChangesAsync(cancellationToken);
+        return slot.Id;
+    }
+
+    public async Task DeactivateSlotAsync(int slotId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var slot = await db.ProductSlots.FirstOrDefaultAsync(s => s.Id == slotId, cancellationToken)
+            ?? throw new InvalidOperationException("That date was not found.");
+
+        slot.IsActive = false;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
     private static ProductListItem ToListItem(Product p) =>
         new(p.Id, p.Name, p.Slug, p.Description, p.Category, p.Price, p.Stock, p.Unit, p.ImagePath, p.IsActive);
+
+    private static ProductSlotItem ToSlotItem(ProductSlot slot, ProductCategory category) =>
+        new(
+            slot.Id,
+            slot.ProductId,
+            slot.StartsAt,
+            slot.EndsAt,
+            slot.Capacity,
+            slot.BookedCount,
+            slot.Remaining,
+            BookingPricing.SlotLabel(slot, category),
+            slot.IsActive);
 }

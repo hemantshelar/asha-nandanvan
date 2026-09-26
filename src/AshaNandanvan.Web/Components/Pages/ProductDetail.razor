@@ -1,5 +1,6 @@
 @page "/shop/{Slug}"
 @inject IProductService Products
+@inject IDogSittingService DogSitting
 @inject ICartService Cart
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
@@ -10,7 +11,7 @@
 {
     <section class="shell">
         <p>We could not find that item.</p>
-        <a href="/shop">Back to the shop</a>
+        <a href="/">Back home</a>
     </section>
 }
 else
@@ -19,16 +20,110 @@ else
         <img class="product-detail__image" src="@_product.ImagePath" alt="@_product.Name" />
         <div>
             <p class="eyebrow">@CatalogFormatting.CategoryName(_product.Category)</p>
-            <h1>@_product.Name</h1>
-            <p class="lede">@_product.Description</p>
+            <h1>@(_settings?.Headline ?? _product.Name)</h1>
+            <p class="lede">@(_settings?.Description ?? _product.Description)</p>
             <p class="price">@CatalogFormatting.Money(_product.Price) <span>/ @_product.Unit</span></p>
-            <p class="muted">@_product.Stock in the backyard this week</p>
-            <div class="qty-row">
-                <MudNumericField @bind-Value="_quantity" Min="1" Max="@Math.Max(1, _product.Stock)" HideSpinButtons="false" Variant="Variant.Outlined" />
-                <button class="btn btn--solid" disabled="@(_product.Stock <= 0)" @onclick="AddAsync">
-                    Add to basket
-                </button>
-            </div>
+
+            @if (_product.Category == ProductCategory.DogSitting)
+            {
+                <DogStayWelcome @bind-PetName="_petName" />
+
+                <div class="stay-pickers">
+                    <label>
+                        Drop-off
+                        <input type="datetime-local" @bind="_dropOffLocal" @bind:after="CheckStayAsync" min="@_minLocal" />
+                    </label>
+                    <label>
+                        Pick-up
+                        <input type="datetime-local" @bind="_pickUpLocal" @bind:after="CheckStayAsync" min="@_minLocal" />
+                    </label>
+                </div>
+
+                @if (_stayError is not null)
+                {
+                    <p class="banner banner--warn">@_stayError</p>
+                }
+                else if (_availability is not null)
+                {
+                    <p class="banner @(_availability.CanBook ? "banner--ok" : "banner--warn")">
+                        <strong>@_availability.Status.</strong> @_availability.Message
+                    </p>
+                    @if (_availability.Warning is not null)
+                    {
+                        <p class="banner">@_availability.Warning</p>
+                    }
+                    <p class="muted">Estimated stay: @_nights night@(_nights == 1 ? "" : "s") · @CatalogFormatting.Money(_product.Price * _nights)</p>
+                }
+
+                @if (!string.IsNullOrWhiteSpace(_settings?.TermsAndConditions))
+                {
+                    <details class="terms">
+                        <summary>Terms and conditions</summary>
+                        <p>@_settings.TermsAndConditions</p>
+                    </details>
+                    <label class="check">
+                        <input type="checkbox" @bind="_acceptedTerms" />
+                        I accept the dog sitting terms
+                    </label>
+                }
+
+                @if (string.IsNullOrWhiteSpace(_petName))
+                {
+                    <p class="muted">Tell us the dog’s name so we can personalise the stay note and the booking.</p>
+                }
+
+                <div class="qty-row">
+                    <button class="btn btn--solid" disabled="@(!CanBookStay)" @onclick="AddStayAsync">Book this stay</button>
+                </div>
+            }
+            else if (_product.RequiresBooking)
+            {
+                <p class="muted">Pick an open date, then add it to your basket.</p>
+                @if (_slots.Count == 0)
+                {
+                    <p class="banner">No dates are open yet. Please check back, or message us on Facebook.</p>
+                }
+                else
+                {
+                    <div class="slot-list" role="list">
+                        @foreach (var slot in _slots)
+                        {
+                            var taken = slot.Remaining <= 0;
+                            <label class="slot @(taken ? "slot--full" : null) @(_slotId == slot.Id ? "slot--active" : null)">
+                                <input type="radio" name="slot" value="@slot.Id" checked="@(_slotId == slot.Id)" disabled="@taken"
+                                       @onchange="() => _slotId = slot.Id" />
+                                <span>
+                                    <strong>@slot.Label</strong>
+                                    <small>@(taken ? "Fully booked" : $"{slot.Remaining} {_product.Unit} left")</small>
+                                </span>
+                            </label>
+                        }
+                    </div>
+                }
+
+                <div class="qty-row">
+                    <MudNumericField @bind-Value="_quantity" Min="1" Max="@GuestMax" HideSpinButtons="false" Variant="Variant.Outlined" />
+                    <button class="btn btn--solid" disabled="@(!CanBookSlot)" @onclick="AddAsync">Add to basket</button>
+                </div>
+            }
+            else
+            {
+                <p class="muted">@_product.Stock in the backyard this week</p>
+                <div class="qty-row">
+                    <MudNumericField @bind-Value="_quantity" Min="1" Max="@Math.Max(1, _product.Stock)" HideSpinButtons="false" Variant="Variant.Outlined" />
+                    <button class="btn btn--solid" disabled="@(_product.Stock <= 0)" @onclick="AddAsync">
+                        Add to basket
+                    </button>
+                </div>
+            }
+
+            @{
+                var offer = OfferCatalog.ForCategory(_product.Category);
+            }
+            @if (offer is not null)
+            {
+                <p><a class="text-link" href="/offer/@offer.Slug">Back to @offer.Title</a></p>
+            }
         </div>
     </section>
 }
@@ -36,7 +131,35 @@ else
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
     private ProductListItem? _product;
+    private DogSittingSettingsModel? _settings;
+    private IReadOnlyList<ProductSlotItem> _slots = [];
+    private int? _slotId;
     private int _quantity = 1;
+    private DateTime _dropOffLocal = DateTime.Today.AddDays(1).AddHours(9);
+    private DateTime _pickUpLocal = DateTime.Today.AddDays(3).AddHours(18);
+    private string _minLocal = DateTime.Today.ToString("yyyy-MM-ddTHH:mm");
+    private StayAvailability? _availability;
+    private string? _stayError;
+    private bool _acceptedTerms;
+    private string _petName = string.Empty;
+
+    private int _nights => BookingPricing.NightCount(ToSydney(_dropOffLocal), ToSydney(_pickUpLocal));
+
+    private int GuestMax
+    {
+        get
+        {
+            var slot = _slots.FirstOrDefault(s => s.Id == _slotId);
+            return Math.Max(1, slot?.Remaining ?? 1);
+        }
+    }
+
+    private bool CanBookSlot => _slotId is not null && _slots.Any(s => s.Id == _slotId && s.Remaining > 0);
+    private bool CanBookStay =>
+        _availability?.CanBook == true
+        && _acceptedTerms
+        && _stayError is null
+        && !string.IsNullOrWhiteSpace(_petName);
 
     protected override async Task OnParametersSetAsync()
     {
@@ -44,6 +167,66 @@ else
         if (_product is null)
         {
             Navigation.NavigateTo("/not-found");
+            return;
+        }
+
+        if (_product.Category == ProductCategory.DogSitting)
+        {
+            _settings = await DogSitting.GetSettingsAsync();
+            var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(
+                Navigation.ToAbsoluteUri(Navigation.Uri).Query);
+            if (query.TryGetValue("pet", out var pet) && !string.IsNullOrWhiteSpace(pet) && string.IsNullOrWhiteSpace(_petName))
+            {
+                _petName = pet.ToString();
+            }
+
+            await CheckStayAsync();
+            return;
+        }
+
+        if (_product.RequiresBooking)
+        {
+            _slots = await Products.GetSlotsAsync(_product.Id);
+            _slotId = _slots.FirstOrDefault(s => s.Remaining > 0)?.Id;
+            _quantity = 1;
+        }
+    }
+
+    private async Task CheckStayAsync()
+    {
+        _stayError = null;
+        _availability = null;
+        try
+        {
+            _availability = await DogSitting.CheckAvailabilityAsync(ToSydney(_dropOffLocal), ToSydney(_pickUpLocal));
+        }
+        catch (Exception ex)
+        {
+            _stayError = ex.Message;
+        }
+    }
+
+    private async Task AddStayAsync()
+    {
+        if (_product is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Cart.AddAsync(
+                _product.Id,
+                1,
+                stayStart: ToSydney(_dropOffLocal),
+                stayEnd: ToSydney(_pickUpLocal),
+                petName: _petName.Trim());
+            Snackbar.Add($"{_petName.Trim()}'s stay added to your basket.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            await CheckStayAsync();
         }
     }
 
@@ -56,12 +239,20 @@ else
 
         try
         {
-            await Cart.AddAsync(_product.Id, _quantity);
+            await Cart.AddAsync(_product.Id, _quantity, _product.RequiresBooking ? _slotId : null);
             Snackbar.Add($"{_product.Name} added to your basket.", Severity.Success);
         }
         catch (Exception ex)
         {
             Snackbar.Add(ex.Message, Severity.Warning);
         }
+    }
+
+    private static DateTimeOffset ToSydney(DateTime local)
+    {
+        var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
+        return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified));
     }
 }

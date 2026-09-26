@@ -1,6 +1,5 @@
 ﻿@page "/"
 @inject IOptions<StoreOptions> StoreAccessor
-@inject IProductService Products
 
 <PageTitle>@Store.Name — Sydney backyard living</PageTitle>
 
@@ -15,7 +14,7 @@
                 Scraps become soil. Soil becomes dinner. What grows here stays here.
             </p>
             <div class="hero__actions">
-                <a class="btn btn--solid" href="/shop">Shop the harvest</a>
+                <a class="btn btn--solid" href="#offers">What we offer</a>
                 <a class="btn btn--ghost" href="/how-we-live">How we live</a>
             </div>
         </div>
@@ -25,17 +24,22 @@
     </div>
 </section>
 
-<section class="band">
+<section class="band" id="offers">
     <div class="shell">
-        <p class="eyebrow section-kicker">Fresh</p>
+        <p class="eyebrow section-kicker">Choose a path</p>
         <div class="section-head">
-            <h2>New from the backyard</h2>
-            <a class="btn btn--ghost" href="/shop">See all</a>
+            <h2>What we offer</h2>
         </div>
-        <div class="show-row">
-            @foreach (var product in _featured)
+        <div class="offer-grid">
+            @foreach (var offer in OfferCatalog.All)
             {
-                <ProductCard Product="product" />
+                <a class="offer-card @(offer.Slug == OfferCatalog.DogSitting.Slug ? "offer-card--photo" : null)" href="/offer/@offer.Slug">
+                    <img src="@offer.ImagePath" alt="@(offer.Slug == OfferCatalog.DogSitting.Slug ? offer.Title : "")" />
+                    <span class="eyebrow">@offer.Eyebrow</span>
+                    <h3>@offer.Title</h3>
+                    <p>@offer.Summary</p>
+                    <span class="offer-card__cta">@(offer.RequiresBooking ? "See dates" : "See what’s in")</span>
+                </a>
             }
         </div>
     </div>
@@ -84,10 +88,4 @@
 
 @code {
     private StoreOptions Store => StoreAccessor.Value;
-    private IReadOnlyList<ProductListItem> _featured = [];
-
-    protected override async Task OnInitializedAsync()
-    {
-        _featured = (await Products.GetActiveAsync()).Take(4).ToList();
-    }
 }

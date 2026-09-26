@@ -1,6 +1,6 @@
 # Asha Nandanvan
 
-A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.php?id=61587331501473) backyard in Sydney: sustainable living, worm composting, chickens, and a pickup shop for eggs, vegetables, live worms, and black gold compost.
+A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.php?id=61587331501473) backyard in Sydney: fresh garden produce, dog sitting, composting education tours, and take-home worms and black gold.
 
 ## Stack
 

@@ -29,4 +29,5 @@ public sealed record OrderLineSummary(
     string ProductName,
     string Unit,
     int Quantity,
-    decimal UnitPrice);
+    decimal UnitPrice,
+    string? SlotLabel = null);

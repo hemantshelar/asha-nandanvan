@@ -15,7 +15,7 @@
     @if (_cart.IsEmpty)
     {
         <p>Your basket is empty.</p>
-        <a class="btn btn--solid" href="/shop">Browse the shop</a>
+        <a class="btn btn--solid" href="/#offers">See what we offer</a>
     }
     else
     {
@@ -35,12 +35,16 @@
                         <td>
                             <strong>@line.Name</strong>
                             <div class="muted">@CatalogFormatting.Money(line.UnitPrice) / @line.Unit</div>
+                            @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                            {
+                                <div class="muted">@line.SlotLabel</div>
+                            }
                         </td>
                         <td>
-                            <MudNumericField Value="line.Quantity" ValueChanged="(int q) => ChangeAsync(line.ProductId, q)" Min="1" Max="line.Stock" Variant="Variant.Outlined" />
+                            <MudNumericField Value="line.Quantity" ValueChanged="(int q) => ChangeAsync(line, q)" Min="1" Max="Math.Max(1, line.Stock)" Variant="Variant.Outlined" />
                         </td>
                         <td>@CatalogFormatting.Money(line.LineTotal)</td>
-                        <td><button class="text-link" @onclick="() => RemoveAsync(line.ProductId)">Remove</button></td>
+                        <td><button class="text-link" @onclick="() => RemoveAsync(line)">Remove</button></td>
                     </tr>
                 }
             </tbody>
@@ -64,15 +68,15 @@
         }
     }
 
-    private async Task ChangeAsync(int productId, int quantity)
+    private async Task ChangeAsync(CartLine line, int quantity)
     {
-        await Cart.UpdateQuantityAsync(productId, quantity);
+        await Cart.UpdateQuantityAsync(line.ProductId, quantity, line.SlotId);
         _cart = await Cart.GetAsync();
     }
 
-    private async Task RemoveAsync(int productId)
+    private async Task RemoveAsync(CartLine line)
     {
-        await Cart.RemoveAsync(productId);
+        await Cart.RemoveAsync(line.ProductId, line.SlotId);
         _cart = await Cart.GetAsync();
     }
 

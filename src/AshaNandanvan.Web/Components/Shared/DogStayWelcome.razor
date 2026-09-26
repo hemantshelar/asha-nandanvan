@@ -1,0 +1,48 @@
+<div class="stay-welcome">
+    <label>
+        Your dog’s name
+        <input value="@PetName"
+               maxlength="40"
+               autocomplete="off"
+               placeholder="e.g. Zeke"
+               @oninput="OnNameInput" />
+    </label>
+    <p class="muted stay-welcome__hint">Type a name and the note below will use it — Zeke is only an example.</p>
+
+    @{
+        var letter = StayWelcomeCopy.Build(PetName);
+    }
+    <article class="stay-welcome__letter">
+        <p>@letter.Intro</p>
+        <p><strong>@letter.BringHeading</strong></p>
+        <ul>
+            @foreach (var item in letter.Bring)
+            {
+                <li>@item</li>
+            }
+        </ul>
+        <p><strong>@letter.ShareHeading</strong></p>
+        <ul>
+            @foreach (var item in letter.Share)
+            {
+                <li>@item</li>
+            }
+        </ul>
+        <p><strong>@letter.GroupHeading</strong></p>
+        <ul>
+            @foreach (var item in letter.Group)
+            {
+                <li>@item</li>
+            }
+        </ul>
+        <p>@letter.Close</p>
+    </article>
+</div>
+
+@code {
+    [Parameter] public string PetName { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> PetNameChanged { get; set; }
+
+    private Task OnNameInput(ChangeEventArgs e) =>
+        PetNameChanged.InvokeAsync(e.Value?.ToString() ?? string.Empty);
+}

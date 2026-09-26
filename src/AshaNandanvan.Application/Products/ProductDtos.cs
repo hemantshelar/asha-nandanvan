@@ -12,7 +12,30 @@ public sealed record ProductListItem(
     int Stock,
     string Unit,
     string? ImagePath,
+    bool IsActive)
+{
+    public bool RequiresBooking => Category.RequiresBooking();
+}
+
+public sealed record ProductSlotItem(
+    int Id,
+    int ProductId,
+    DateTimeOffset StartsAt,
+    DateTimeOffset EndsAt,
+    int Capacity,
+    int BookedCount,
+    int Remaining,
+    string Label,
     bool IsActive);
+
+public sealed record ProductSlotEditModel
+{
+    public int ProductId { get; set; }
+    public DateTimeOffset StartsAt { get; set; }
+    public DateTimeOffset EndsAt { get; set; }
+    public int Capacity { get; set; } = 1;
+    public string? Label { get; set; }
+}
 
 public sealed record ProductEditModel
 {

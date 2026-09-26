@@ -11,4 +11,10 @@ public class OrderItem
     public string Unit { get; set; } = string.Empty;
     public int Quantity { get; set; }
     public decimal UnitPrice { get; set; }
+    public int? ProductSlotId { get; set; }
+    public ProductSlot? ProductSlot { get; set; }
+    public DateTimeOffset? StayStartsAt { get; set; }
+    public DateTimeOffset? StayEndsAt { get; set; }
+    public string? PetName { get; set; }
+    public string? SlotLabel { get; set; }
 }

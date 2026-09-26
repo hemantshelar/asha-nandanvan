@@ -1,4 +1,6 @@
 using AshaNandanvan.Application.Common;
+using AshaNandanvan.Application.Offers;
+using AshaNandanvan.Infrastructure.DogSitting;
 using AshaNandanvan.Domain.Entities;
 using AshaNandanvan.Domain.Enums;
 using Microsoft.AspNetCore.Identity;
@@ -27,13 +29,10 @@ public sealed class DatabaseSeeder
             }
         }
 
-        if (await _db.Products.AnyAsync(cancellationToken))
-        {
-            return;
-        }
-
         var now = DateTimeOffset.UtcNow;
-        _db.Products.AddRange(
+        if (!await _db.Products.AnyAsync(cancellationToken))
+        {
+            _db.Products.AddRange(
             new Product
             {
                 Name = "Backyard eggs",
@@ -105,6 +104,105 @@ public sealed class DatabaseSeeder
                 UpdatedAt = now
             });
 
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await EnsureServiceProductsAsync(now, cancellationToken);
+    }
+
+    private async Task EnsureServiceProductsAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var dogSit = await _db.Products.FirstOrDefaultAsync(p => p.Slug == "backyard-dog-sit", cancellationToken);
+        if (dogSit is null)
+        {
+            dogSit = new Product
+            {
+                Name = "Backyard dog sit",
+                Slug = "backyard-dog-sit",
+                Description = "Your dog stays with us in the Sydney backyard — hens, garden, and a quiet run. One dog per stay. Choose an open window, then we confirm drop-off after payment.",
+                Category = ProductCategory.DogSitting,
+                Price = 55.00m,
+                Stock = 0,
+                Unit = "night",
+                ImagePath = OfferCatalog.DogSitting.ImagePath,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+            _db.Products.Add(dogSit);
+        }
+        else if (dogSit.ImagePath != OfferCatalog.DogSitting.ImagePath)
+        {
+            dogSit.ImagePath = OfferCatalog.DogSitting.ImagePath;
+            dogSit.UpdatedAt = now;
+        }
+
+        if (!await _db.Products.AnyAsync(p => p.Slug == "composting-education-tour", cancellationToken))
+        {
+            _db.Products.Add(new Product
+            {
+                Name = "Composting education tour",
+                Slug = "composting-education-tour",
+                Description = "A small-group walk through the composting loop: scraps, worms, castings, and the beds they feed. About 90 minutes at the backyard.",
+                Category = ProductCategory.CompostTour,
+                Price = 25.00m,
+                Stock = 0,
+                Unit = "guest",
+                ImagePath = "/images/compost.svg",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
         await _db.SaveChangesAsync(cancellationToken);
+
+        if (!await _db.DogSittingSettings.AnyAsync(cancellationToken))
+        {
+            _db.DogSittingSettings.Add(new DogSittingSettings
+            {
+                MaxDogs = 5,
+                Headline = dogSit.Name,
+                Description = dogSit.Description,
+                TermsAndConditions = DogSittingService.DefaultTerms,
+                UpdatedAt = now
+            });
+        }
+
+        var tour = await _db.Products.FirstAsync(p => p.Slug == "composting-education-tour", cancellationToken);
+
+        if (!await _db.ProductSlots.AnyAsync(s => s.ProductId == tour.Id, cancellationToken))
+        {
+            var saturday = NextWeekday(DateTime.Today, DayOfWeek.Saturday);
+            _db.ProductSlots.AddRange(
+                Session(tour.Id, saturday, 10),
+                Session(tour.Id, saturday.AddDays(7), 10),
+                Session(tour.Id, saturday.AddDays(14), 14));
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+    }
+
+    private static DateTime NextWeekday(DateTime from, DayOfWeek day)
+    {
+        var delta = ((int)day - (int)from.DayOfWeek + 7) % 7;
+        return from.AddDays(delta == 0 ? 7 : delta);
+    }
+
+    private static ProductSlot Session(int productId, DateTime date, int hour)
+    {
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
+        var local = date.Date.AddHours(hour);
+        var start = new DateTimeOffset(DateTime.SpecifyKind(local, DateTimeKind.Unspecified), tz.GetUtcOffset(local));
+        return new ProductSlot
+        {
+            ProductId = productId,
+            StartsAt = start,
+            EndsAt = start.AddHours(1.5),
+            Capacity = 8,
+            BookedCount = 0,
+            IsActive = true
+        };
     }
 }

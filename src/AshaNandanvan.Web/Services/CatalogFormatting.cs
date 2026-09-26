@@ -9,6 +9,8 @@ public static class CatalogFormatting
         ProductCategory.Eggs => "Eggs",
         ProductCategory.Veggies => "Veggies",
         ProductCategory.WormsAndCompost => "Worms & compost",
+        ProductCategory.DogSitting => "Dog sitting",
+        ProductCategory.CompostTour => "Composting tour",
         _ => category.ToString()
     };
 

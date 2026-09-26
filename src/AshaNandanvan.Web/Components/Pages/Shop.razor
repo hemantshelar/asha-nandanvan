@@ -1,51 +1,8 @@
 @page "/shop"
-@inject IProductService Products
+@inject NavigationManager Navigation
 
-<PageTitle>Shop — Asha Nandanvan</PageTitle>
-
-<section class="page-hero">
-    <div class="shell">
-        <p class="eyebrow">From the backyard</p>
-        <h1>Shop the backyard</h1>
-        <p class="lede">Eggs, vegetables, live worms, and black gold compost. Collect in Sydney after checkout.</p>
-    </div>
-</section>
-
-<section class="shell">
-    <div class="filters">
-        <button class="@FilterClass(null)" @onclick="() => FilterAsync(null)">All</button>
-        <button class="@FilterClass(ProductCategory.Eggs)" @onclick="() => FilterAsync(ProductCategory.Eggs)">Eggs</button>
-        <button class="@FilterClass(ProductCategory.Veggies)" @onclick="() => FilterAsync(ProductCategory.Veggies)">Veggies</button>
-        <button class="@FilterClass(ProductCategory.WormsAndCompost)" @onclick="() => FilterAsync(ProductCategory.WormsAndCompost)">Worms &amp; compost</button>
-    </div>
-
-    @if (_products.Count == 0)
-    {
-        <p class="muted">Nothing in this basket this week. Please check back after the next harvest.</p>
-    }
-    else
-    {
-        <div class="product-grid">
-            @foreach (var product in _products)
-            {
-                <ProductCard Product="product" />
-            }
-        </div>
-    }
-</section>
+<PageTitle>What we offer — Asha Nandanvan</PageTitle>
 
 @code {
-    private ProductCategory? _category;
-    private IReadOnlyList<ProductListItem> _products = [];
-
-    protected override Task OnInitializedAsync() => FilterAsync(null);
-
-    private async Task FilterAsync(ProductCategory? category)
-    {
-        _category = category;
-        _products = await Products.GetActiveAsync(category);
-    }
-
-    private string FilterClass(ProductCategory? category) =>
-        _category == category ? "chip chip--active" : "chip";
+    protected override void OnInitialized() => Navigation.NavigateTo("/#offers", replace: true);
 }

@@ -1,0 +1,75 @@
+@page "/offer/{Slug}"
+@inject IProductService Products
+@inject NavigationManager Navigation
+
+<PageTitle>@(_offer?.Title ?? "Offer") — Asha Nandanvan</PageTitle>
+
+@if (_offer is null)
+{
+    <section class="shell">
+        <p>We could not find that offer.</p>
+        <a href="/">Back home</a>
+    </section>
+}
+else
+{
+    <section class="page-hero">
+        <div class="shell">
+            <p class="eyebrow">@_offer.Eyebrow</p>
+            <h1>@_offer.Title</h1>
+            <p class="lede">@_offer.Description</p>
+        </div>
+    </section>
+
+    <section class="shell">
+        @if (_products.Count == 0)
+        {
+            <p class="muted">Nothing in this offer this week. Please check back soon.</p>
+        }
+        else if (_offer.Slug == OfferCatalog.DogSitting.Slug && _products.Count == 1)
+        {
+            <div class="stay-offer">
+                <DogStayWelcome @bind-PetName="_petName" />
+                <div>
+                    <p class="muted">Choose drop-off and pick-up on the next screen, then add the stay to your basket.</p>
+                    <ProductCard Product="_products[0]" PetName="@_petName" />
+                </div>
+            </div>
+        }
+        else if (_offer.RequiresBooking && _products.Count == 1)
+        {
+            <p class="muted">Choose a date on the next screen, then add it to your basket.</p>
+            <div class="product-grid">
+                <ProductCard Product="_products[0]" />
+            </div>
+        }
+        else
+        {
+            <div class="product-grid">
+                @foreach (var product in _products)
+                {
+                    <ProductCard Product="product" />
+                }
+            </div>
+        }
+    </section>
+}
+
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    private OfferDefinition? _offer;
+    private IReadOnlyList<ProductListItem> _products = [];
+    private string _petName = string.Empty;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _offer = OfferCatalog.Find(Slug);
+        if (_offer is null)
+        {
+            Navigation.NavigateTo("/not-found");
+            return;
+        }
+
+        _products = await Products.GetActiveByOfferAsync(_offer.Slug);
+    }
+}

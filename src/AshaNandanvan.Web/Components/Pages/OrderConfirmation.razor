@@ -31,7 +31,14 @@
             <ul>
                 @foreach (var line in _order.Items)
                 {
-                    <li>@line.Quantity × @line.ProductName — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)</li>
+                    <li>
+                        @line.Quantity × @line.ProductName
+                        @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                        {
+                            <text> (@line.SlotLabel)</text>
+                        }
+                        — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)
+                    </li>
                 }
             </ul>
             <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>

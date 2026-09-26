@@ -28,9 +28,11 @@
         <label>
             Category
             <select @bind="_category">
-                <option value="@ProductCategory.Eggs">Eggs</option>
-                <option value="@ProductCategory.Veggies">Veggies</option>
+                <option value="@ProductCategory.Eggs">Eggs (fresh produce)</option>
+                <option value="@ProductCategory.Veggies">Veggies (fresh produce)</option>
                 <option value="@ProductCategory.WormsAndCompost">Worms &amp; compost</option>
+                <option value="@ProductCategory.DogSitting">Dog sitting (booking)</option>
+                <option value="@ProductCategory.CompostTour">Composting tour (booking)</option>
             </select>
         </label>
         <label>
@@ -59,6 +61,63 @@
         }
         <button class="btn btn--solid" type="submit" disabled="@_busy">Save</button>
     </form>
+
+    @if (Id is int productId && _category == ProductCategory.CompostTour)
+    {
+        <section class="slot-admin">
+            <h2>Booking dates</h2>
+            <p class="muted">Visitors pick one of these before they can add this to the basket.</p>
+            @if (_slots.Count == 0)
+            {
+                <p class="muted">No dates yet.</p>
+            }
+            else
+            {
+                <table class="cart-table">
+                    <thead>
+                        <tr>
+                            <th>When</th>
+                            <th>Capacity</th>
+                            <th>Booked</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var slot in _slots)
+                        {
+                            <tr>
+                                <td>@slot.Label</td>
+                                <td>@slot.Capacity</td>
+                                <td>@slot.BookedCount</td>
+                                <td>
+                                    <button class="text-link" type="button" @onclick="() => RemoveSlotAsync(slot.Id)">Remove</button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            }
+            <form class="admin-form" @onsubmit="AddSlotAsync" @onsubmit:preventDefault>
+                <label>
+                    Starts
+                    <input type="datetime-local" @bind="_slotStart" />
+                </label>
+                <label>
+                    Ends
+                    <input type="datetime-local" @bind="_slotEnd" />
+                </label>
+                <label>
+                    Capacity
+                    <input type="number" min="1" @bind="_slotCapacity" />
+                </label>
+                <label>
+                    Label (optional)
+                    <input @bind="_slotLabel" placeholder="Weekend stay, Saturday 10am…" />
+                </label>
+                <button class="btn btn--ghost" type="submit">Add date</button>
+            </form>
+        </section>
+    }
 </section>
 
 @code {
@@ -66,6 +125,11 @@
     private readonly ProductEditModel _model = new();
     private ProductCategory _category = ProductCategory.Veggies;
     private bool _busy;
+    private IReadOnlyList<ProductSlotItem> _slots = [];
+    private DateTime _slotStart = DateTime.Today.AddDays(7).AddHours(10);
+    private DateTime _slotEnd = DateTime.Today.AddDays(7).AddHours(11).AddMinutes(30);
+    private int _slotCapacity = 1;
+    private string? _slotLabel;
 
     protected override async Task OnInitializedAsync()
     {
@@ -91,6 +155,11 @@
         _model.Unit = product.Unit;
         _model.ImagePath = product.ImagePath;
         _model.IsActive = product.IsActive;
+        if (product.Category.RequiresBooking())
+        {
+            _slots = await Products.GetSlotsAsync(product.Id, upcomingOnly: false);
+            _slotCapacity = product.Category == ProductCategory.DogSitting ? 1 : 8;
+        }
     }
 
     private async Task OnFile(InputFileChangeEventArgs args)
@@ -122,5 +191,51 @@
             Snackbar.Add(ex.Message, Severity.Error);
             _busy = false;
         }
+    }
+
+    private async Task AddSlotAsync()
+    {
+        if (Id is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await Products.CreateSlotAsync(new ProductSlotEditModel
+            {
+                ProductId = Id.Value,
+                StartsAt = ToSydney(_slotStart),
+                EndsAt = ToSydney(_slotEnd),
+                Capacity = _slotCapacity,
+                Label = _slotLabel
+            });
+            _slotLabel = null;
+            _slots = await Products.GetSlotsAsync(Id.Value, upcomingOnly: false);
+            Snackbar.Add("Date added.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task RemoveSlotAsync(int slotId)
+    {
+        if (Id is null)
+        {
+            return;
+        }
+
+        await Products.DeactivateSlotAsync(slotId);
+        _slots = await Products.GetSlotsAsync(Id.Value, upcomingOnly: false);
+    }
+
+    private static DateTimeOffset ToSydney(DateTime local)
+    {
+        var unspecified = DateTime.SpecifyKind(local, DateTimeKind.Unspecified);
+        var tz = TimeZoneInfo.FindSystemTimeZoneById(
+            OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
+        return new DateTimeOffset(unspecified, tz.GetUtcOffset(unspecified));
     }
 }

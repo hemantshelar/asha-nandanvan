@@ -28,7 +28,7 @@
     @if (_cart.IsEmpty)
     {
         <p>Your basket is empty.</p>
-        <a class="btn btn--solid" href="/shop">Back to the shop</a>
+        <a class="btn btn--solid" href="/#offers">See what we offer</a>
     }
     else
     {
@@ -71,7 +71,14 @@
                 <h2>Order</h2>
                 @foreach (var line in _cart.Items)
                 {
-                    <p>@line.Quantity × @line.Name <span>@CatalogFormatting.Money(line.LineTotal)</span></p>
+                    <p>
+                        @line.Quantity × @line.Name
+                        @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                        {
+                            <small class="muted"> · @line.SlotLabel</small>
+                        }
+                        <span>@CatalogFormatting.Money(line.LineTotal)</span>
+                    </p>
                 }
                 <p class="total">Total @CatalogFormatting.Money(_cart.Total)</p>
             </aside>

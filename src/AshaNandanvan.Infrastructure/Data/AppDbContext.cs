@@ -12,10 +12,12 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     }
 
     public DbSet<Product> Products => Set<Product>();
+    public DbSet<ProductSlot> ProductSlots => Set<ProductSlot>();
     public DbSet<Cart> Carts => Set<Cart>();
     public DbSet<CartItem> CartItems => Set<CartItem>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
+    public DbSet<DogSittingSettings> DogSittingSettings => Set<DogSittingSettings>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -29,6 +31,16 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(p => p.Unit).HasMaxLength(40).IsRequired();
             entity.Property(p => p.Price).HasColumnType("decimal(10,2)");
             entity.Property(p => p.ImagePath).HasMaxLength(260);
+            entity.HasMany(p => p.Slots)
+                .WithOne(s => s.Product)
+                .HasForeignKey(s => s.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<ProductSlot>(entity =>
+        {
+            entity.Property(s => s.Label).HasMaxLength(160);
+            entity.HasIndex(s => new { s.ProductId, s.StartsAt });
         });
 
         builder.Entity<Cart>(entity =>
@@ -42,7 +54,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
 
         builder.Entity<CartItem>(entity =>
         {
-            entity.HasIndex(i => new { i.CartId, i.ProductId }).IsUnique();
+            entity.HasIndex(i => new { i.CartId, i.ProductId })
+                .IsUnique()
+                .HasFilter("[ProductSlotId] IS NULL");
+            entity.HasIndex(i => new { i.CartId, i.ProductId, i.ProductSlotId })
+                .IsUnique()
+                .HasFilter("[ProductSlotId] IS NOT NULL");
+            entity.HasOne(i => i.ProductSlot)
+                .WithMany()
+                .HasForeignKey(i => i.ProductSlotId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(i => i.PetName).HasMaxLength(80);
         });
 
         builder.Entity<Order>(entity =>
@@ -65,6 +87,19 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(i => i.ProductName).HasMaxLength(160).IsRequired();
             entity.Property(i => i.Unit).HasMaxLength(40).IsRequired();
             entity.Property(i => i.UnitPrice).HasColumnType("decimal(10,2)");
+            entity.Property(i => i.SlotLabel).HasMaxLength(160);
+            entity.HasOne(i => i.ProductSlot)
+                .WithMany()
+                .HasForeignKey(i => i.ProductSlotId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.Property(i => i.PetName).HasMaxLength(80);
+        });
+
+        builder.Entity<DogSittingSettings>(entity =>
+        {
+            entity.Property(s => s.Headline).HasMaxLength(160).IsRequired();
+            entity.Property(s => s.Description).IsRequired();
+            entity.Property(s => s.TermsAndConditions).IsRequired();
         });
     }
 }

@@ -1,28 +1,40 @@
 @inject ICartService Cart
 @inject ISnackbar Snackbar
 
-<article class="product-card">
-    <a class="product-card__media" href="/shop/@Product.Slug">
+<article class="product-card @(Product.Category == ProductCategory.DogSitting ? "product-card--photo" : null)">
+    <a class="product-card__media" href="@DetailHref">
         <img src="@Product.ImagePath" alt="@Product.Name" />
         <span class="product-card__date">@CatalogFormatting.CategoryName(Product.Category)</span>
     </a>
     <div class="product-card__body">
-        <h3><a href="/shop/@Product.Slug">@Product.Name</a></h3>
+        <h3><a href="@DetailHref">@Product.Name</a></h3>
         <p class="muted">@Product.Description</p>
         <div class="product-card__footer">
             <div class="product-card__meta">
                 <strong>@CatalogFormatting.Money(Product.Price)</strong>
                 <span>/ @Product.Unit</span>
             </div>
-            <button class="btn btn--solid" disabled="@(Product.Stock <= 0)" @onclick="AddAsync">
-                @(Product.Stock <= 0 ? "Sold out" : "Add to basket")
-            </button>
+            @if (Product.RequiresBooking)
+            {
+                <a class="btn btn--solid" href="@DetailHref">Choose a date</a>
+            }
+            else
+            {
+                <button class="btn btn--solid" disabled="@(Product.Stock <= 0)" @onclick="AddAsync">
+                    @(Product.Stock <= 0 ? "Sold out" : "Add to basket")
+                </button>
+            }
         </div>
     </div>
 </article>
 
 @code {
     [Parameter, EditorRequired] public ProductListItem Product { get; set; } = default!;
+    [Parameter] public string? PetName { get; set; }
+
+    private string DetailHref => string.IsNullOrWhiteSpace(PetName)
+        ? $"/shop/{Product.Slug}"
+        : $"/shop/{Product.Slug}?pet={Uri.EscapeDataString(PetName.Trim())}";
 
     private async Task AddAsync()
     {
