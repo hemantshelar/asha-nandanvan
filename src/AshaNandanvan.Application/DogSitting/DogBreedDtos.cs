@@ -20,6 +20,7 @@ public interface IDogBreedService
     Task<IReadOnlyList<DogBreedOption>> ListApprovedAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DogBreedReviewItem>> ListForReviewAsync(CancellationToken cancellationToken = default);
     Task<string> ResolveForBookingAsync(string name, CancellationToken cancellationToken = default);
+    Task<bool> RequiresTrialAsync(string name, CancellationToken cancellationToken = default);
     Task ApproveAsync(int id, CancellationToken cancellationToken = default);
     Task RejectAsync(int id, CancellationToken cancellationToken = default);
     Task CreateAsync(string name, bool approved = true, bool? offersSitting = null, bool? isLargeBreed = null, CancellationToken cancellationToken = default);

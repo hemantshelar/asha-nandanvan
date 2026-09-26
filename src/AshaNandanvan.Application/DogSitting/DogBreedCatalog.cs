@@ -185,5 +185,5 @@ public static class DogBreedCatalog
         "We are sorry — we cannot host this breed in our backyard. Asha is a young Border Collie, we keep hens, and we only sit dogs that can share that space safely.";
 
     public const string LargeTrialMessage =
-        "We usually host smaller dogs. For a stay of five nights or more, we start with a free one-night trial at least two days before drop-off. That gives your dog time to settle, and lets us see how they go with the hens and with Asha. Some breeds have a strong hunting instinct, and we need to be sure the flock stays safe. The trial night is free, and neither of us is obliged to continue.";
+        "We usually host smaller dogs. Larger breeds start with a free one-night trial at least two days before drop-off. That gives your dog time to settle, and lets us see how they go with the hens and with Asha. Some breeds have a strong hunting instinct, and we need to be sure the flock stays safe. The trial night is free, and neither of us is obliged to continue.";
 }

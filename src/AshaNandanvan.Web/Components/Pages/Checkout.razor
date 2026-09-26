@@ -2,9 +2,7 @@
 @attribute [Authorize]
 @inject ICartService Cart
 @inject IOrderService Orders
-@inject IPaymentProvider Payment
 @inject IOptions<StoreOptions> StoreAccessor
-@inject IOptions<PaymentOptions> PaymentAccessor
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
@@ -15,7 +13,7 @@
     <div class="shell">
         <p class="eyebrow">Sydney backyard</p>
         <h1>Checkout</h1>
-        <p class="lede">Place the order now and pay later — cash or online after the visit — or pay now to settle it immediately.</p>
+        <p class="lede">Place the order and we will approve it. After that you can pay online from My orders, or in cash at the backyard.</p>
     </div>
 </section>
 
@@ -60,21 +58,9 @@
                     </select>
                 </label>
                 <p class="muted">@Store.PickupAddress</p>
-                <div class="checkout-choice">
-                    <p><strong>Place order</strong> — we hold the produce or stay. Pay later in cash, from your orders, or by scanning a QR the host shows you.</p>
-                    <p><strong>Pay and place order</strong> — settle online now on Square.</p>
-                </div>
-                @if (_needsSquareKeys)
-                {
-                    <p class="banner">Online pay needs Square keys. You can still place the order and pay later.</p>
-                }
-                else
-                {
-                    <p class="muted">@_paymentHint</p>
-                }
+                <p class="muted">We approve every order first. Pay online from My orders after it is approved.</p>
                 <div class="checkout__actions">
-                    <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="() => SubmitAsync(payNow: false)">Place order</button>
-                    <button class="btn btn--solid" type="button" disabled="@(_busy || _needsSquareKeys)" @onclick="() => SubmitAsync(payNow: true)">Pay and place order</button>
+                    <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="SubmitAsync">Place order</button>
                 </div>
             </form>
             <aside class="panel">
@@ -102,16 +88,6 @@
     private bool _busy;
     private bool _cancelled;
     private StoreOptions Store => StoreAccessor.Value;
-    private bool _needsSquareKeys =>
-        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
-        && !PaymentAccessor.Value.Square.IsConfigured;
-    private string _paymentHint => Payment.Name switch
-    {
-        "Mock" => "Online pay is in demo mode and will mark the order paid immediately.",
-        "Square (sandbox)" => "Online pay uses Square sandbox. Test card 4111 1111 1111 1111, any future expiry, any CVV, any postcode.",
-        "Square" => "Online pay finishes on the secure Square page.",
-        _ => "Online pay finishes on the secure payment page."
-    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -142,7 +118,7 @@
         }
     }
 
-    private async Task SubmitAsync(bool payNow)
+    private async Task SubmitAsync()
     {
         if (string.IsNullOrWhiteSpace(_request.CustomerName) || string.IsNullOrWhiteSpace(_request.CustomerEmail))
         {
@@ -157,16 +133,9 @@
             var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
                 ?? throw new InvalidOperationException("Please sign in again.");
 
-            var order = await Orders.CreateOrderAsync(userId, _request, payNow);
-            if (!payNow)
-            {
-                await Cart.ClearAsync();
-                Navigation.NavigateTo($"/checkout/confirmation/{order.OrderNumber}");
-                return;
-            }
-
-            var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(order, Store.Currency));
-            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+            var order = await Orders.CreateOrderAsync(userId, _request, payNow: false);
+            await Cart.ClearAsync();
+            Navigation.NavigateTo($"/checkout/confirmation/{order.OrderNumber}");
         }
         catch (Exception ex)
         {

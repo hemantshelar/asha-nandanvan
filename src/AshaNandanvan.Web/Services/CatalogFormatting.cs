@@ -1,3 +1,4 @@
+using AshaNandanvan.Application.Orders;
 using AshaNandanvan.Domain.Enums;
 
 namespace AshaNandanvan.Web.Services;
@@ -17,4 +18,6 @@ public static class CatalogFormatting
     public static string Money(decimal amount) => amount.ToString("C");
 
     public static string StatusName(OrderStatus status) => status.DisplayName();
+
+    public static string StatusName(OrderSummary order) => order.StatusLabel;
 }

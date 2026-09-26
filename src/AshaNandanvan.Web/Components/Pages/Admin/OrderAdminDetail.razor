@@ -26,7 +26,7 @@
     {
         <div class="stay-offer">
             <article class="panel">
-                <p>Status: <strong>@CatalogFormatting.StatusName(_order.Status)</strong></p>
+                <p>Status: <strong>@_order.StatusLabel</strong></p>
                 <p>@_order.CustomerName<br /><span class="muted">@_order.CustomerEmail</span></p>
                 @if (!string.IsNullOrWhiteSpace(_order.Phone))
                 {
@@ -55,14 +55,7 @@
                     }
                 </ul>
                 <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
-                @if (_order.CanAcceptOriginalStay)
-                {
-                    <div class="checkout__actions">
-                        <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="AcceptOriginalAsync">Accept original booking</button>
-                        <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
-                    </div>
-                }
-                else if (_order.CanApprove || _order.CanReject)
+                @if (_order.CanApprove || _order.CanReject || _order.CanPlaceOriginalStay || _order.CanDeclineLongerStay)
                 {
                     <div class="checkout__actions">
                         @if (_order.CanApprove)
@@ -72,6 +65,14 @@
                         @if (_order.CanReject)
                         {
                             <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
+                        }
+                        @if (_order.CanPlaceOriginalStay)
+                        {
+                            <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="PlaceOriginalAsync">Place original order</button>
+                        }
+                        @if (_order.CanDeclineLongerStay)
+                        {
+                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="DeclineLongerStayAsync">Do not continue</button>
                         }
                     </div>
                 }
@@ -128,13 +129,16 @@
     }
 
     private async Task ApproveAsync() =>
-        await RunAsync(() => Orders.ApproveAsync(_order!.Id), "Order confirmed.");
+        await RunAsync(() => Orders.ApproveAsync(_order!.Id), "Order approved.");
 
     private async Task RejectAsync() =>
         await RunAsync(() => Orders.RejectAsync(_order!.Id), "Order rejected.");
 
-    private async Task AcceptOriginalAsync() =>
-        await RunAsync(() => Orders.AcceptOriginalStayAsync(_order!.Id), "Original stay accepted. It now follows the usual dog-sitting flow.");
+    private async Task PlaceOriginalAsync() =>
+        await RunAsync(() => Orders.PlaceOriginalStayAsync(_order!.Id), "Longer stay approved. The customer can pay as usual.");
+
+    private async Task DeclineLongerStayAsync() =>
+        await RunAsync(() => Orders.RejectAsync(_order!.Id), "We will not continue with the longer stay.");
 
     private async Task RunAsync(Func<Task> action, string ok)
     {

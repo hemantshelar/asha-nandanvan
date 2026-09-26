@@ -11,12 +11,6 @@ public sealed class DogSittingService : IDogSittingService
 {
     public const string ProductSlug = "backyard-dog-sit";
 
-    private static readonly OrderStatus[] ConfirmedStatuses =
-    [
-        OrderStatus.Confirmed,
-        OrderStatus.ReadyForPickup
-    ];
-
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
 
     public DogSittingService(IDbContextFactory<AppDbContext> dbFactory) => _dbFactory = dbFactory;
@@ -180,12 +174,12 @@ public sealed class DogSittingService : IDogSittingService
             {
                 var start = i.StayStartsAt ?? i.ProductSlot?.StartsAt;
                 var end = i.StayEndsAt ?? i.ProductSlot?.EndsAt;
-                if (start is null || end is null)
+                if (start is null || end is null || end <= DateTimeOffset.UtcNow)
                 {
                     return null;
                 }
 
-                return new ActiveStay(start.Value, end.Value, i.Quantity, ConfirmedStatuses.Contains(i.Order.Status));
+                return new ActiveStay(start.Value, end.Value, i.Quantity, i.Order.Status.IsApproved() || i.Order.Status.IsPaid());
             })
             .Where(s => s is not null)
             .Select(s => s!)

@@ -14,25 +14,42 @@ public enum OrderStatus
 
 public static class OrderStatusExtensions
 {
-    public static bool IsUnpaid(this OrderStatus status) =>
-        status is OrderStatus.Placed or OrderStatus.PendingPayment or OrderStatus.Confirmed;
+    public static readonly OrderStatus[] FilterChoices =
+    [
+        OrderStatus.Placed,
+        OrderStatus.Confirmed,
+        OrderStatus.Rejected,
+        OrderStatus.Paid
+    ];
 
-    public static bool AwaitsDecision(this OrderStatus status) =>
-        status is OrderStatus.Placed or OrderStatus.PendingPayment or OrderStatus.Paid;
-
-    public static bool IsClosed(this OrderStatus status) =>
-        status is OrderStatus.Rejected or OrderStatus.Cancelled;
-
-    public static string DisplayName(this OrderStatus status) => status switch
+    public static OrderStatus VisibleStatus(this OrderStatus status) => status switch
     {
-        OrderStatus.Placed => "Awaiting approval",
-        OrderStatus.PendingPayment => "Payment started",
-        OrderStatus.Paid => "Paid — awaiting approval",
-        OrderStatus.Confirmed => "Confirmed",
-        OrderStatus.ReadyForPickup => "Ready",
-        OrderStatus.Completed => "Completed",
-        OrderStatus.Cancelled => "Cancelled",
+        OrderStatus.PendingPayment or OrderStatus.Placed => OrderStatus.Placed,
+        OrderStatus.Cancelled => OrderStatus.Rejected,
+        OrderStatus.ReadyForPickup or OrderStatus.Completed => OrderStatus.Paid,
+        _ => status
+    };
+
+    public static bool IsPending(this OrderStatus status) =>
+        status.VisibleStatus() == OrderStatus.Placed;
+
+    public static bool IsApproved(this OrderStatus status) =>
+        status.VisibleStatus() == OrderStatus.Confirmed;
+
+    public static bool IsRejected(this OrderStatus status) =>
+        status.VisibleStatus() == OrderStatus.Rejected;
+
+    public static bool IsPaid(this OrderStatus status) =>
+        status.VisibleStatus() == OrderStatus.Paid;
+
+    public static bool IsUnpaid(this OrderStatus status) => status.IsApproved();
+
+    public static string DisplayName(this OrderStatus status) => status.VisibleStatus() switch
+    {
+        OrderStatus.Placed => "Pending",
+        OrderStatus.Confirmed => "Approved",
         OrderStatus.Rejected => "Rejected",
+        OrderStatus.Paid => "Paid",
         _ => status.ToString()
     };
 }

@@ -16,6 +16,7 @@ public sealed class CartService : ICartService
     private const string StorageKey = "asha.cart";
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IDogSittingService _dogSitting;
+    private readonly IDogBreedService _breeds;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly ProtectedLocalStorage _localStorage;
     private readonly SemaphoreSlim _gate = new(1, 1);
@@ -23,11 +24,13 @@ public sealed class CartService : ICartService
     public CartService(
         IDbContextFactory<AppDbContext> dbFactory,
         IDogSittingService dogSitting,
+        IDogBreedService breeds,
         AuthenticationStateProvider authenticationStateProvider,
         ProtectedLocalStorage localStorage)
     {
         _dbFactory = dbFactory;
         _dogSitting = dogSitting;
+        _breeds = breeds;
         _authenticationStateProvider = authenticationStateProvider;
         _localStorage = localStorage;
     }
@@ -95,6 +98,12 @@ public sealed class CartService : ICartService
 
                 petName = petName.Trim();
                 petBreed = petBreed.Trim();
+                var requiresTrial = await _breeds.RequiresTrialAsync(petBreed, cancellationToken);
+                if (requiresTrial && !trialStay)
+                {
+                    throw new InvalidOperationException("This breed needs a free trial night at least two days before the long stay.");
+                }
+
                 if (trialStay)
                 {
                     stayEnd = stayStart.Value.AddDays(1);
@@ -106,6 +115,12 @@ public sealed class CartService : ICartService
                     if (intendedStayEnd <= intendedStayStart)
                     {
                         throw new InvalidOperationException("Pick-up must be after drop-off.");
+                    }
+
+                    var latestTrial = intendedStayStart.Value.AddDays(-DogBreedCatalog.TrialLeadDays);
+                    if (stayStart.Value > latestTrial)
+                    {
+                        throw new InvalidOperationException("The trial night must be at least two days before drop-off.");
                     }
                 }
 

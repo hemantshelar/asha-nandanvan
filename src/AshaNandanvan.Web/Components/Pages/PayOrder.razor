@@ -24,7 +24,7 @@
     {
         <article class="panel pay-panel">
             <p>Order <strong>@_order.OrderNumber</strong> for @_order.CustomerName</p>
-            <p>Status: @CatalogFormatting.StatusName(_order.Status)</p>
+            <p>Status: @_order.StatusLabel</p>
             <ul>
                 @foreach (var line in _order.Items)
                 {

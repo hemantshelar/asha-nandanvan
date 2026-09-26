@@ -245,7 +245,7 @@ else
         }
     }
 
-    private bool NeedsTrialBooking => BreedNeedsTrial && _nights >= DogBreedCatalog.TrialAfterNights;
+    private bool NeedsTrialBooking => BreedNeedsTrial;
 
     private DateTime TrialLatest => _dropOffLocal.AddDays(-DogBreedCatalog.TrialLeadDays);
 
@@ -373,9 +373,15 @@ else
                 return;
             }
 
+            if (_dropOffLocal < DateTime.Now.AddMinutes(-5))
+            {
+                _stayError = "Drop-off cannot be in the past.";
+                return;
+            }
+
             if (NeedsTrialBooking && TrialLatest.Date < DateTime.Today)
             {
-                _stayError = "Drop-off is too soon for a trial night. Move the long stay at least two days later, or book four nights or fewer.";
+                _stayError = "Drop-off is too soon for a trial night. Move the long stay at least two days later so we can meet first.";
                 return;
             }
 
@@ -409,6 +415,11 @@ else
             if (!PickUpValid)
             {
                 throw new InvalidOperationException("Pick-up must be after drop-off.");
+            }
+
+            if (trial && TrialLatest.Date < DateTime.Today)
+            {
+                throw new InvalidOperationException("Drop-off is too soon for a trial night. Move the long stay at least two days later so we can meet first.");
             }
 
             if (trial && !TrialDateValid)

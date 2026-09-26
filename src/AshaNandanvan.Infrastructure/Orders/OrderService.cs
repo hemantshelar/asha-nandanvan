@@ -12,15 +12,18 @@ public sealed class OrderService : IOrderService
 {
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IDogSittingService _dogSitting;
+    private readonly IDogBreedService _breeds;
 
-    public OrderService(IDbContextFactory<AppDbContext> dbFactory, IDogSittingService dogSitting)
+    public OrderService(IDbContextFactory<AppDbContext> dbFactory, IDogSittingService dogSitting, IDogBreedService breeds)
     {
         _dbFactory = dbFactory;
         _dogSitting = dogSitting;
+        _breeds = breeds;
     }
 
     public async Task<OrderSummary> CreateOrderAsync(string userId, CheckoutRequest request, bool payNow, CancellationToken cancellationToken = default)
     {
+        _ = payNow;
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var cart = await db.Carts
             .Include(c => c.Items)
@@ -47,6 +50,13 @@ public sealed class OrderService : IOrderService
                 if (item.StayStartsAt is null || item.StayEndsAt is null)
                 {
                     throw new InvalidOperationException("Choose drop-off and pick-up for the dog sit.");
+                }
+
+                if (!string.IsNullOrWhiteSpace(item.PetBreed)
+                    && await _breeds.RequiresTrialAsync(item.PetBreed, cancellationToken)
+                    && !item.IsTrialStay)
+                {
+                    throw new InvalidOperationException("This breed needs a free trial night before the long stay.");
                 }
 
                 var availability = await _dogSitting.CheckAvailabilityAsync(
@@ -87,7 +97,7 @@ public sealed class OrderService : IOrderService
             Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim(),
             PickupDate = request.PickupDate,
             PickupWindow = request.PickupWindow,
-            Status = payNow ? OrderStatus.PendingPayment : OrderStatus.Placed,
+            Status = OrderStatus.Placed,
             Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay)),
             PaymentProvider = string.Empty,
             CreatedAt = now,
@@ -115,12 +125,9 @@ public sealed class OrderService : IOrderService
 
         db.Orders.Add(order);
 
-        if (!payNow)
-        {
-            await ReserveInventoryAsync(db, order, cancellationToken);
-            cart.Items.Clear();
-            cart.UpdatedAt = now;
-        }
+        await ReserveInventoryAsync(db, order, cancellationToken);
+        cart.Items.Clear();
+        cart.UpdatedAt = now;
 
         await db.SaveChangesAsync(cancellationToken);
         return ToSummary(order);
@@ -162,48 +169,55 @@ public sealed class OrderService : IOrderService
         return orders.Select(ToSummary).ToList();
     }
 
-    public async Task UpdateStatusAsync(int orderId, OrderStatus status, CancellationToken cancellationToken = default)
+    public async Task ApproveAsync(int orderId, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
             ?? throw new InvalidOperationException("Order was not found.");
 
-        if (status == OrderStatus.Paid && order.Status.IsUnpaid())
+        if (order.Status.IsPaid() || order.Status.IsApproved())
         {
-            await MarkPaidCoreAsync(db, order, "admin", "Admin", cancellationToken);
-        }
-        else if (status is OrderStatus.Cancelled or OrderStatus.Rejected
-            && order.Status is OrderStatus.Placed or OrderStatus.Paid or OrderStatus.Confirmed or OrderStatus.ReadyForPickup)
-        {
-            await RestoreInventoryAsync(db, order, cancellationToken);
-            order.Status = status;
-            order.UpdatedAt = DateTimeOffset.UtcNow;
-        }
-        else
-        {
-            order.Status = status;
-            order.UpdatedAt = DateTimeOffset.UtcNow;
+            return;
         }
 
+        if (!order.Status.IsPending() && !order.Status.IsRejected())
+        {
+            throw new InvalidOperationException("This order cannot be approved.");
+        }
+
+        if (order.Status.IsRejected())
+        {
+            await ReserveInventoryAsync(db, order, cancellationToken);
+        }
+
+        order.Status = OrderStatus.Confirmed;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task ApproveAsync(int orderId, CancellationToken cancellationToken = default)
+    public async Task RejectAsync(int orderId, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var hasTrial = await db.OrderItems.AnyAsync(i => i.OrderId == orderId && i.IsTrialStay, cancellationToken);
-        if (hasTrial)
+        var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+            ?? throw new InvalidOperationException("Order was not found.");
+
+        if (order.Status.IsRejected())
         {
-            throw new InvalidOperationException("Finish the trial night, then accept the original booking or reject it.");
+            return;
         }
 
-        await UpdateStatusAsync(orderId, OrderStatus.Confirmed, cancellationToken);
+        if (!order.Status.IsPending() && !order.Status.IsApproved())
+        {
+            throw new InvalidOperationException("A paid order cannot be rejected.");
+        }
+
+        await RestoreInventoryAsync(db, order, cancellationToken);
+        order.Status = OrderStatus.Rejected;
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
     }
 
-    public Task RejectAsync(int orderId, CancellationToken cancellationToken = default) =>
-        UpdateStatusAsync(orderId, OrderStatus.Rejected, cancellationToken);
-
-    public async Task AcceptOriginalStayAsync(int orderId, CancellationToken cancellationToken = default)
+    public async Task PlaceOriginalStayAsync(int orderId, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var order = await db.Orders
@@ -213,9 +227,9 @@ public sealed class OrderService : IOrderService
             ?? throw new InvalidOperationException("Order was not found.");
 
         var summary = ToSummary(order);
-        if (!summary.CanAcceptOriginalStay)
+        if (!summary.CanPlaceOriginalStay)
         {
-            throw new InvalidOperationException("The trial night must finish before the original stay can be accepted.");
+            throw new InvalidOperationException("Approve the trial first, then place the original stay.");
         }
 
         foreach (var line in order.Items.Where(i => i.IsTrialStay))
@@ -259,9 +273,7 @@ public sealed class OrderService : IOrderService
         }
 
         order.Total = order.Items.Sum(i => i.UnitPrice * i.Quantity);
-        order.Status = string.IsNullOrWhiteSpace(order.PaymentReference)
-            ? OrderStatus.Placed
-            : OrderStatus.Paid;
+        order.Status = OrderStatus.Confirmed;
         order.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
     }
@@ -308,15 +320,7 @@ public sealed class OrderService : IOrderService
         string? provider,
         CancellationToken cancellationToken)
     {
-        if (order.Status == OrderStatus.PendingPayment)
-        {
-            await ReserveInventoryAsync(db, order, cancellationToken);
-        }
-
-        if (order.Status != OrderStatus.Confirmed)
-        {
-            order.Status = OrderStatus.Paid;
-        }
+        order.Status = OrderStatus.Paid;
         order.PaymentReference = paymentReference;
         if (!string.IsNullOrWhiteSpace(provider))
         {

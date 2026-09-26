@@ -13,7 +13,7 @@
 <section class="page-hero">
     <div class="shell">
         <p class="eyebrow">Thank you</p>
-        <h1>@(_order?.Status == OrderStatus.Placed ? "Order placed" : "Pickup reserved")</h1>
+        <h1>@Heading</h1>
     </div>
 </section>
 
@@ -26,28 +26,32 @@
     {
         <article class="panel">
             <p>Order <strong>@_order.OrderNumber</strong></p>
-            <p>Status: @CatalogFormatting.StatusName(_order.Status)</p>
+            <p>Status: <strong>@_order.StatusLabel</strong></p>
             <p>Visit / collect @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
             <p>@Store.PickupAddress</p>
-            @if (_order.Status == OrderStatus.Placed)
+            @if (!string.IsNullOrWhiteSpace(_order.CustomerNote))
             {
-                <p>The order is waiting for us to approve it. Once confirmed, pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+                <p>@_order.CustomerNote</p>
             }
-            else if (_order.Status == OrderStatus.Confirmed && _order.CanPay)
+            else if (_order.Status.IsPending())
             {
-                <p>This order is confirmed. Pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+                <p>This order is pending. We will approve it shortly. After that you can pay from <a href="/orders">My orders</a>.</p>
             }
-            else if (_order.Status == OrderStatus.Rejected)
+            else if (_order.Status.IsApproved() && _order.CanPay)
+            {
+                <p>This order is approved. Pay online below, from <a href="/orders">My orders</a>, or in cash at the backyard.</p>
+            }
+            else if (_order.Status.IsApproved())
+            {
+                <p>This order is approved.</p>
+            }
+            else if (_order.Status.IsRejected())
             {
                 <p>This order was rejected. Get in touch if you need another date.</p>
             }
-            else if (_order.CanPay)
+            else if (_order.Status.IsPaid())
             {
-                <p>Payment is not finished yet. You can try online pay again below.</p>
-            }
-            else
-            {
-                <p>We will share the exact backyard gate after we confirm.</p>
+                <p>This order is paid. Thank you.</p>
             }
             <ul>
                 @foreach (var line in _order.Items)
@@ -84,6 +88,19 @@
     private OrderSummary? _order;
     private bool _busy;
     private string _qrUri = string.Empty;
+    private string Heading =>
+        _order is null ? "Order"
+        : _order.HasTrialStay && _order.Status.IsApproved() ? "Trial night approved"
+        : _order.HasTrialStay && _order.Status.IsPending() ? "Trial night requested"
+        : _order.HasTrialStay && _order.Status.IsRejected() ? "Not continuing"
+        : _order.Status.VisibleStatus() switch
+        {
+            OrderStatus.Placed => "Order placed",
+            OrderStatus.Confirmed => "Order approved",
+            OrderStatus.Rejected => "Order rejected",
+            OrderStatus.Paid => "Order paid",
+            _ => "Order"
+        };
     private StoreOptions Store => StoreAccessor.Value;
     private bool _needsSquareKeys =>
         PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)

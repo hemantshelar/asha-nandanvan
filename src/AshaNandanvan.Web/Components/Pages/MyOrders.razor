@@ -17,11 +17,11 @@
         <p class="lede">
             @if (_isAdmin)
             {
-                <text>Search any customer, then approve or reject the order. After a trial night, accept the original stay or reject it. A stay is confirmed only after you approve.</text>
+                <text>Approve or reject each order. After you approve a trial, place the original stay. Customers pay only after approval.</text>
             }
             else
             {
-                <text>Find an order by number or status. Pay online when you are ready, or settle in cash at the backyard.</text>
+                <text>Once we approve an order, you can pay online or in cash at the backyard.</text>
             }
         </p>
     </div>
@@ -62,7 +62,7 @@
                 Status
                 <select @bind="_status">
                     <option value="">Any status</option>
-                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                    @foreach (var status in OrderStatusExtensions.FilterChoices)
                     {
                         <option value="@status">@CatalogFormatting.StatusName(status)</option>
                     }
@@ -130,6 +130,10 @@
                                     {
                                         <div class="muted">Free trial night</div>
                                     }
+                                    else if (line.IntendedStayStartsAt is not null)
+                                    {
+                                        <div class="muted">Confirmed after trial</div>
+                                    }
                                     @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
                                     {
                                         <div class="muted">@line.SlotLabel</div>
@@ -142,27 +146,15 @@
                             </td>
                             <td>@CatalogFormatting.Money(order.Total)</td>
                             <td>
-                                @if (_isAdmin)
+                                <div>@order.StatusLabel</div>
+                                @if (!_isAdmin && !string.IsNullOrWhiteSpace(order.CustomerNote))
                                 {
-                                    <select value="@order.Status" @onchange="e => ChangeStatusAsync(order, e)">
-                                        @foreach (var status in Enum.GetValues<OrderStatus>())
-                                        {
-                                            <option value="@status">@CatalogFormatting.StatusName(status)</option>
-                                        }
-                                    </select>
-                                }
-                                else
-                                {
-                                    @CatalogFormatting.StatusName(order.Status)
+                                    <div class="muted">@order.CustomerNote</div>
                                 }
                             </td>
                             <td>
                                 <div class="order-actions">
-                                    @if (_isAdmin && order.CanAcceptOriginalStay)
-                                    {
-                                        <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => AcceptOriginalAsync(order)">Accept original booking</button>
-                                    }
-                                    else if (_isAdmin && order.CanApprove)
+                                    @if (_isAdmin && order.CanApprove)
                                     {
                                         <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => ApproveAsync(order)">Approve</button>
                                     }
@@ -170,7 +162,15 @@
                                     {
                                         <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => RejectAsync(order)">Reject</button>
                                     }
-                                    @if (order.CanPay && !_needsSquareKeys)
+                                    @if (_isAdmin && order.CanPlaceOriginalStay)
+                                    {
+                                        <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => PlaceOriginalAsync(order)">Place original order</button>
+                                    }
+                                    @if (_isAdmin && order.CanDeclineLongerStay)
+                                    {
+                                        <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => DeclineLongerStayAsync(order)">Do not continue</button>
+                                    }
+                                    @if (!_isAdmin && order.CanPay && !_needsSquareKeys)
                                     {
                                         <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
                                     }
@@ -234,7 +234,7 @@
 
             if (Enum.TryParse<OrderStatus>(_status, out var status))
             {
-                rows = rows.Where(o => o.Status == status);
+                rows = rows.Where(o => o.Status.VisibleStatus() == status);
             }
 
             if (_fromDate is DateTime from)
@@ -258,7 +258,7 @@
                 "customer" => Order(rows, o => o.CustomerName),
                 "phone" => Order(rows, o => o.Phone ?? string.Empty),
                 "total" => Order(rows, o => o.Total),
-                "status" => Order(rows, o => o.Status.ToString()),
+                "status" => Order(rows, o => o.Status.DisplayName()),
                 _ => Order(rows, o => o.PickupDate)
             };
         }
@@ -293,27 +293,9 @@
     private string OrderHref(OrderSummary order) =>
         _isAdmin ? $"/admin/orders/{order.OrderNumber}" : $"/checkout/confirmation/{order.OrderNumber}";
 
-    private async Task ChangeStatusAsync(OrderSummary order, ChangeEventArgs args)
-    {
-        if (!Enum.TryParse<OrderStatus>(args.Value?.ToString(), out var status))
-        {
-            return;
-        }
-
-        try
-        {
-            await Orders.UpdateStatusAsync(order.Id, status);
-            _source = await Orders.GetAllAsync();
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Error);
-        }
-    }
-
     private async Task ApproveAsync(OrderSummary order)
     {
-        await RunAdminActionAsync(order.Id, () => Orders.ApproveAsync(order.Id), "Order confirmed.");
+        await RunAdminActionAsync(order.Id, () => Orders.ApproveAsync(order.Id), "Order approved.");
     }
 
     private async Task RejectAsync(OrderSummary order)
@@ -321,9 +303,31 @@
         await RunAdminActionAsync(order.Id, () => Orders.RejectAsync(order.Id), "Order rejected.");
     }
 
-    private async Task AcceptOriginalAsync(OrderSummary order)
+    private async Task PlaceOriginalAsync(OrderSummary order)
     {
-        await RunAdminActionAsync(order.Id, () => Orders.AcceptOriginalStayAsync(order.Id), "Original stay accepted. It now follows the usual dog-sitting flow.");
+        _acting = order.Id;
+        try
+        {
+            await Orders.PlaceOriginalStayAsync(order.Id);
+            _trialFilter = string.Empty;
+            _status = string.Empty;
+            _orderNumber = order.OrderNumber;
+            Snackbar.Add($"{order.OrderNumber} is now an approved stay. The customer can pay as usual.", Severity.Success);
+            _source = await Orders.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _acting = null;
+        }
+    }
+
+    private async Task DeclineLongerStayAsync(OrderSummary order)
+    {
+        await RunAdminActionAsync(order.Id, () => Orders.RejectAsync(order.Id), "We will not continue with the longer stay.");
     }
 
     private async Task RunAdminActionAsync(int orderId, Func<Task> action, string ok)

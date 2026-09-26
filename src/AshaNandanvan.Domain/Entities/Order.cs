@@ -12,7 +12,7 @@ public class Order
     public string? Phone { get; set; }
     public DateOnly PickupDate { get; set; }
     public string PickupWindow { get; set; } = string.Empty;
-    public OrderStatus Status { get; set; } = OrderStatus.PendingPayment;
+    public OrderStatus Status { get; set; } = OrderStatus.Placed;
     public decimal Total { get; set; }
     public string PaymentProvider { get; set; } = string.Empty;
     public string? PaymentReference { get; set; }

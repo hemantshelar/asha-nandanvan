@@ -75,6 +75,20 @@ public sealed class DogBreedService : IDogBreedService
         return existing.Name;
     }
 
+    public async Task<bool> RequiresTrialAsync(string name, CancellationToken cancellationToken = default)
+    {
+        var breed = Normalize(name);
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var existing = await db.DogBreeds.AsNoTracking()
+            .FirstOrDefaultAsync(b => b.Name == breed, cancellationToken);
+        if (existing is not null)
+        {
+            return existing.OffersSitting && existing.IsLargeBreed;
+        }
+
+        return DogBreedCatalog.NeedsTrial(breed);
+    }
+
     public async Task ApproveAsync(int id, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
