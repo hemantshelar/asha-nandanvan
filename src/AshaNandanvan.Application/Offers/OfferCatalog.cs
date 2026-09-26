@@ -43,7 +43,7 @@ public static class OfferCatalog
         "Learn",
         "Walk the loop: scraps, worms, castings, and the beds they feed.",
         "A small-group visit through the composting system we actually run. Choose a session, pay for your guests, and we will see you at the gate.",
-        "/images/compost.svg",
+        "/images/compost-tour.jpg",
         [ProductCategory.CompostTour],
         true);
 

@@ -138,7 +138,8 @@ public sealed class DatabaseSeeder
             dogSit.UpdatedAt = now;
         }
 
-        if (!await _db.Products.AnyAsync(p => p.Slug == "composting-education-tour", cancellationToken))
+        var tourProduct = await _db.Products.FirstOrDefaultAsync(p => p.Slug == "composting-education-tour", cancellationToken);
+        if (tourProduct is null)
         {
             _db.Products.Add(new Product
             {
@@ -149,11 +150,16 @@ public sealed class DatabaseSeeder
                 Price = 25.00m,
                 Stock = 0,
                 Unit = "guest",
-                ImagePath = "/images/compost.svg",
+                ImagePath = OfferCatalog.CompostTours.ImagePath,
                 IsActive = true,
                 CreatedAt = now,
                 UpdatedAt = now
             });
+        }
+        else if (tourProduct.ImagePath != OfferCatalog.CompostTours.ImagePath)
+        {
+            tourProduct.ImagePath = OfferCatalog.CompostTours.ImagePath;
+            tourProduct.UpdatedAt = now;
         }
 
         await _db.SaveChangesAsync(cancellationToken);
