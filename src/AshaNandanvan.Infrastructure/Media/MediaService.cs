@@ -44,12 +44,22 @@ public sealed class MediaService : IMediaService
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var now = DateTimeOffset.UtcNow;
 
+        var watchUrl = YouTubeLinks.WatchUrl(videoId);
+        var duplicate = await db.MediaItems.AnyAsync(
+            m => m.OfferSlug == offer.Slug && m.YouTubeVideoId == videoId && m.Id != (model.Id ?? 0),
+            cancellationToken);
+        if (duplicate)
+        {
+            throw new InvalidOperationException("That YouTube clip is already in this offer.");
+        }
+
         if (model.Id is int id)
         {
             var item = await db.MediaItems.FirstOrDefaultAsync(m => m.Id == id, cancellationToken)
                 ?? throw new InvalidOperationException("That clip was not found.");
             item.OfferSlug = offer.Slug;
             item.Title = title;
+            item.SourceUrl = watchUrl;
             item.YouTubeVideoId = videoId;
             item.SortOrder = model.SortOrder;
             item.IsPublished = model.IsPublished;
@@ -61,14 +71,23 @@ public sealed class MediaService : IMediaService
             {
                 OfferSlug = offer.Slug,
                 Title = title,
+                SourceUrl = watchUrl,
                 YouTubeVideoId = videoId,
                 SortOrder = model.SortOrder,
                 IsPublished = model.IsPublished,
+                CreatedAt = now,
                 UpdatedAt = now
             });
         }
 
-        await db.SaveChangesAsync(cancellationToken);
+        try
+        {
+            await db.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new InvalidOperationException(Innermost(ex), ex);
+        }
     }
 
     public async Task DeleteAsync(int id, CancellationToken cancellationToken = default)
@@ -102,5 +121,17 @@ public sealed class MediaService : IMediaService
         return offer is null
             ? null
             : new MediaClip(id, offer.Slug, offer.Eyebrow, title, videoId, sortOrder, published);
+    }
+
+    private static string Innermost(Exception ex)
+    {
+        while (ex.InnerException is not null)
+        {
+            ex = ex.InnerException;
+        }
+
+        return string.IsNullOrWhiteSpace(ex.Message)
+            ? "The clip could not be saved."
+            : ex.Message;
     }
 }
