@@ -4,22 +4,28 @@ namespace AshaNandanvan.Application.Media;
 
 public static partial class YouTubeLinks
 {
-    public static bool TryParseVideoId(string? url, out string videoId)
+    public static bool TryParseVideoId(string? urlOrId, out string videoId)
     {
         videoId = string.Empty;
-        if (string.IsNullOrWhiteSpace(url))
+        if (string.IsNullOrWhiteSpace(urlOrId))
         {
             return false;
         }
 
-        var trimmed = url.Trim();
+        var trimmed = urlOrId.Trim();
+        if (BareIdRegex().IsMatch(trimmed))
+        {
+            videoId = trimmed;
+            return true;
+        }
+
         if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri)
             || uri.Scheme is not ("http" or "https"))
         {
             return false;
         }
 
-        var match = VideoIdRegex().Match(trimmed);
+        var match = UrlIdRegex().Match(trimmed);
         if (!match.Success)
         {
             return false;
@@ -38,8 +44,11 @@ public static partial class YouTubeLinks
     public static string WatchUrl(string videoId) =>
         $"https://www.youtube.com/watch?v={videoId}";
 
+    [GeneratedRegex(@"^[A-Za-z0-9_-]{11}$", RegexOptions.CultureInvariant)]
+    private static partial Regex BareIdRegex();
+
     [GeneratedRegex(
         @"(?:youtube\.com/(?:watch\?(?:.*&)?v=|embed/|shorts/|live/)|youtu\.be/)([A-Za-z0-9_-]{11})",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
-    private static partial Regex VideoIdRegex();
+    private static partial Regex UrlIdRegex();
 }

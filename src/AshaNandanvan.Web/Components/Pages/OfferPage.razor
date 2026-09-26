@@ -88,6 +88,6 @@ else
         }
 
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
-        _clips = await MediaItems.GetPublishedAsync(_offer.Slug);
+        _clips = await MediaItems.ListAsync(_offer.Slug);
     }
 }

@@ -107,9 +107,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(m => m.OfferSlug).HasMaxLength(80).IsRequired();
             entity.Property(m => m.Title).HasMaxLength(160).IsRequired();
-            entity.Property(m => m.SourceUrl).HasMaxLength(500).IsRequired();
-            entity.Property(m => m.YouTubeVideoId).HasMaxLength(20).IsRequired();
-            entity.HasIndex(m => new { m.OfferSlug, m.SortOrder });
+            entity.Property(m => m.YouTubeVideoId).HasMaxLength(11).IsRequired();
+            entity.HasIndex(m => new { m.IsPublished, m.OfferSlug, m.SortOrder });
+            entity.HasIndex(m => new { m.OfferSlug, m.YouTubeVideoId }).IsUnique();
         });
     }
 }

@@ -131,9 +131,6 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
                     b.Property<bool>("IsPublished")
                         .HasColumnType("bit");
 
@@ -145,11 +142,6 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
-                    b.Property<string>("SourceUrl")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
-
                     b.Property<string>("Title")
                         .IsRequired()
                         .HasMaxLength(160)
@@ -160,12 +152,15 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
                     b.Property<string>("YouTubeVideoId")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
 
                     b.HasKey("Id");
 
-                    b.HasIndex("OfferSlug", "SortOrder");
+                    b.HasIndex("IsPublished", "OfferSlug", "SortOrder");
+
+                    b.HasIndex("OfferSlug", "YouTubeVideoId")
+                        .IsUnique();
 
                     b.ToTable("MediaItems");
                 });

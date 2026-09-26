@@ -3,15 +3,16 @@ namespace AshaNandanvan.Application.Media;
 public sealed record MediaClip(
     int Id,
     string OfferSlug,
-    string OfferTitle,
     string OfferEyebrow,
     string Title,
-    string SourceUrl,
     string YouTubeVideoId,
-    string ThumbnailUrl,
-    string EmbedUrl,
     int SortOrder,
-    bool IsPublished);
+    bool IsPublished)
+{
+    public string ThumbnailUrl => YouTubeLinks.ThumbnailUrl(YouTubeVideoId);
+    public string EmbedUrl => YouTubeLinks.EmbedUrl(YouTubeVideoId);
+    public string WatchUrl => YouTubeLinks.WatchUrl(YouTubeVideoId);
+}
 
 public sealed class MediaEditModel
 {
