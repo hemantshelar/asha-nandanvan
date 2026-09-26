@@ -30,11 +30,8 @@ else
         else if (_offer.Slug == OfferCatalog.DogSitting.Slug && _products.Count == 1)
         {
             <div class="stay-offer">
-                <DogStayWelcome @bind-PetName="_petName" />
-                <div>
-                    <p class="muted">Choose drop-off and pick-up on the next screen, then add the stay to your basket.</p>
-                    <ProductCard Product="_products[0]" PetName="@_petName" />
-                </div>
+                <DogStayWelcome />
+                <ProductCard Product="_products[0]" />
             </div>
         }
         else if (_offer.RequiresBooking && _products.Count == 1)
@@ -76,7 +73,6 @@ else
     private OfferDefinition? _offer;
     private IReadOnlyList<ProductListItem> _products = [];
     private IReadOnlyList<MediaClip> _clips = [];
-    private string _petName = string.Empty;
 
     protected override async Task OnParametersSetAsync()
     {

@@ -1,17 +1,21 @@
 namespace AshaNandanvan.Application.DogSitting;
 
 public sealed record StayWelcomeLetter(
-    string Intro,
+    string Activity,
+    string Flock,
+    string ClipCaption,
     string BringHeading,
     IReadOnlyList<string> Bring,
     string ShareHeading,
     IReadOnlyList<string> Share,
-    string GroupHeading,
-    IReadOnlyList<string> Group,
+    string AfterHeading,
+    IReadOnlyList<string> After,
     string Close);
 
 public static class StayWelcomeCopy
 {
+    public const string AshaClipId = "yOZO0b_xhGg";
+
     public static string DisplayName(string? petName) =>
         string.IsNullOrWhiteSpace(petName) ? "your dog" : petName.Trim();
 
@@ -21,25 +25,27 @@ public static class StayWelcomeCopy
         var possessive = string.IsNullOrWhiteSpace(petName) ? "your dog's" : $"{petName.Trim()}'s";
 
         return new StayWelcomeLetter(
-            $"{Sentence(name)} will have access to a spacious backyard to run and play, plus company from my friendly 1-year-old border collie. This will be a great socialization opportunity, especially for active and sociable dogs. As mentioned in the ad, I also have a few chickens in the backyard, so we’ll make sure {name} is comfortable around them or appropriately supervised.",
-            $"For {possessive} comfort and hygiene, please bring:",
+            $"{Sentence(name)} stays in a real Sydney backyard, not a kennel. There is room to run, a 1-year-old Border Collie — Asha — for company, and a small flock of free-range hens.",
+            $"The hens give visiting dogs a job: watch, follow, stay alert. That keeps {name} engaged, busy, and properly exercised for the whole stay — not waiting at the fence. We introduce {name} to the flock carefully, and supervise if they need it.",
+            "Asha working the backyard flock. This is the kind of day a stay looks like.",
+            "What to pack",
             [
-                "Regular food",
-                "Own food bowl",
-                "Any bed, blanket, or comfort items you’d like them to have"
+                "Their usual food",
+                "Their own bowl",
+                "A bed, blanket, or anything that smells like home"
             ],
-            "Before the stay, could you please share:",
+            "Send us before drop-off",
             [
-                $"Any pet insurance details (if {name} is covered)",
-                $"{Sentence(possessive)} preferred vet/doctor (clinic name, address, and phone)",
-                "An alternative emergency contact (name, mobile number, and email)"
+                "Pet insurance details, if they have cover",
+                $"{Sentence(possessive)} usual vet — clinic name, address, and phone",
+                "A second emergency contact — name, mobile, and email"
             ],
-            "We can use this group for:",
+            "Once you book",
             [
-                "Sharing drop-off and pick-up times",
-                $"Any questions or special instructions about {possessive} routine, feeding, or behaviour"
+                "We confirm drop-off and pick-up times",
+                $"Tell us anything we should know about {possessive} routine, feeding, or behaviour"
             ],
-            $"Looking forward to having {name} stay over and making sure they have a safe, happy, and fun time!");
+            $"We look after {name} so the stay is safe, active, and actually fun.");
     }
 
     private static string Sentence(string value) =>

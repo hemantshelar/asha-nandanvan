@@ -192,10 +192,10 @@ public sealed class DogSittingService : IDogSittingService
     }
 
     public const string DefaultTerms =
-        "One household per stay. Your dog must be vaccinated, flea-treated, and used to hens and a garden. "
+        "Your dog must be vaccinated, flea-treated, and used to hens and a garden. "
         + "Drop-off and pick-up are at the backyard. Placing the order holds the place; you can pay now or after the stay, in cash or online. "
         + "If five dogs are already confirmed for any part of your dates, we cannot take another. "
-        + "Food, leads, and any medicine must come with the dog. We are a backyard, not a clinic.";
+        + "Food, leads, and any medicine must come with the dog.";
 
     private sealed record ActiveStay(DateTimeOffset Start, DateTimeOffset End, int Quantity, bool Confirmed);
 }
