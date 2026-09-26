@@ -18,8 +18,8 @@
                 <a class="btn btn--ghost" href="/how-we-live">How we live</a>
             </div>
         </div>
-        <div class="hero__art" aria-hidden="true">
-            <img src="/images/hero.svg" alt="" />
+        <div class="hero__art">
+            <img src="/images/cover.png" alt="Asha Nandanvan wooden garden sign" />
         </div>
     </div>
 </section>
@@ -33,8 +33,8 @@
         <div class="offer-grid">
             @foreach (var offer in OfferCatalog.All)
             {
-                <a class="offer-card @(offer.Slug == OfferCatalog.DogSitting.Slug ? "offer-card--photo" : null)" href="/offer/@offer.Slug">
-                    <img src="@offer.ImagePath" alt="@(offer.Slug == OfferCatalog.DogSitting.Slug ? offer.Title : "")" />
+                <a class="offer-card offer-card--photo" href="/offer/@offer.Slug">
+                    <img src="@offer.ImagePath" alt="@offer.Title" />
                     <span class="eyebrow">@offer.Eyebrow</span>
                     <h3>@offer.Title</h3>
                     <p>@offer.Summary</p>
@@ -79,7 +79,10 @@
             Peelings and hen scraps go to the worms. Castings go back to the beds.
             Surplus leaves the gate only when a neighbour collects it in Sydney.
         </p>
-        <a class="btn btn--solid" href="@Store.FacebookUrl" target="_blank" rel="noreferrer">Follow on Facebook</a>
+        <div class="social-follow">
+            <p class="muted">Follow the backyard</p>
+            <SocialLinks />
+        </div>
     </div>
     <blockquote class="pullquote">
         We create black gold with composting, then feed it back to the same soil that fed us.

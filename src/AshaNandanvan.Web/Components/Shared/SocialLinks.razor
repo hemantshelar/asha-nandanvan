@@ -1,0 +1,17 @@
+@inject IOptions<StoreOptions> StoreAccessor
+
+<nav class="social-links" aria-label="Social media">
+    <a href="@Store.FacebookUrl" target="_blank" rel="noopener noreferrer" aria-label="Asha Nandanvan on Facebook">
+        <MudIcon Icon="@Icons.Custom.Brands.Facebook" />
+    </a>
+    <a href="@Store.InstagramUrl" target="_blank" rel="noopener noreferrer" aria-label="Asha Nandanvan on Instagram">
+        <MudIcon Icon="@Icons.Custom.Brands.Instagram" />
+    </a>
+    <a href="@Store.YouTubeUrl" target="_blank" rel="noopener noreferrer" aria-label="Asha Nandanvan on YouTube">
+        <MudIcon Icon="@Icons.Custom.Brands.YouTube" />
+    </a>
+</nav>
+
+@code {
+    private StoreOptions Store => StoreAccessor.Value;
+}

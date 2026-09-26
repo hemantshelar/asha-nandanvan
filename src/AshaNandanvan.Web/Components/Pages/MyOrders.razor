@@ -8,82 +8,263 @@
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
-<PageTitle>My orders — Asha Nandanvan</PageTitle>
+<PageTitle>@(_isAdmin ? "All orders" : "My orders") — Asha Nandanvan</PageTitle>
 
 <section class="page-hero">
     <div class="shell">
-        <p class="eyebrow">Your account</p>
-        <h1>My orders</h1>
-        <p class="lede">Pay a placed order online whenever you are ready, or settle in cash at the backyard.</p>
+        <p class="eyebrow">@(_isAdmin ? "Admin" : "Your account")</p>
+        <h1>@(_isAdmin ? "All orders" : "My orders")</h1>
+        <p class="lede">
+            @if (_isAdmin)
+            {
+                <text>Search any customer, then open an order to take cash or show a pay QR.</text>
+            }
+            else
+            {
+                <text>Find an order by number or status. Pay online when you are ready, or settle in cash at the backyard.</text>
+            }
+        </p>
     </div>
 </section>
 
 <section class="shell">
-    @if (_orders.Count == 0)
+    @if (_source.Count == 0)
     {
-        <p>You have no orders yet.</p>
-        <a class="btn btn--solid" href="/#offers">See what we offer</a>
+        <p>@(_isAdmin ? "No orders yet." : "You have no orders yet.")</p>
+        @if (!_isAdmin)
+        {
+            <a class="btn btn--solid" href="/#offers">See what we offer</a>
+        }
     }
     else
     {
-        <table class="cart-table">
-            <thead>
-                <tr>
-                    <th>Order</th>
-                    <th>When</th>
-                    <th>Items</th>
-                    <th>Total</th>
-                    <th>Status</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var order in _orders)
-                {
+        <form class="order-filters" @onsubmit:preventDefault>
+            <label>
+                Order number
+                <input @bind="_orderNumber" @bind:event="oninput" placeholder="AN-…" />
+            </label>
+            @if (_isAdmin)
+            {
+                <label>
+                    First name
+                    <input @bind="_firstName" @bind:event="oninput" placeholder="Substring" />
+                </label>
+                <label>
+                    Email
+                    <input @bind="_email" @bind:event="oninput" placeholder="name@@example.com" />
+                </label>
+                <label>
+                    Phone
+                    <input @bind="_phone" @bind:event="oninput" placeholder="04…" />
+                </label>
+            }
+            <label>
+                Status
+                <select @bind="_status">
+                    <option value="">Any status</option>
+                    @foreach (var status in Enum.GetValues<OrderStatus>())
+                    {
+                        <option value="@status">@CatalogFormatting.StatusName(status)</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Visit from
+                <input type="date" @bind="_fromDate" />
+            </label>
+        </form>
+        <p class="muted">@Visible.Count() of @_source.Count order@( _source.Count == 1 ? "" : "s")</p>
+        <div class="table-scroll">
+            <table class="cart-table">
+                <thead>
                     <tr>
-                        <td>
-                            <a class="text-link" href="/checkout/confirmation/@order.OrderNumber">@order.OrderNumber</a>
-                        </td>
-                        <td>@order.PickupDate.ToString("ddd d MMM") · @order.PickupWindow</td>
-                        <td>
-                            @foreach (var line in order.Items)
-                            {
-                                <div>@line.Quantity × @line.ProductName</div>
-                                @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
-                                {
-                                    <div class="muted">@line.SlotLabel</div>
-                                }
-                            }
-                        </td>
-                        <td>@CatalogFormatting.Money(order.Total)</td>
-                        <td>@CatalogFormatting.StatusName(order.Status)</td>
-                        <td>
-                            @if (order.CanPay && !_needsSquareKeys)
-                            {
-                                <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
-                            }
-                        </td>
+                        <th><button type="button" class="sort-btn" @onclick='() => SortBy("number")'>Order @Arrow("number")</button></th>
+                        @if (_isAdmin)
+                        {
+                            <th><button type="button" class="sort-btn" @onclick='() => SortBy("customer")'>Customer @Arrow("customer")</button></th>
+                            <th><button type="button" class="sort-btn" @onclick='() => SortBy("phone")'>Phone @Arrow("phone")</button></th>
+                        }
+                        <th><button type="button" class="sort-btn" @onclick='() => SortBy("when")'>When @Arrow("when")</button></th>
+                        <th>Items</th>
+                        <th><button type="button" class="sort-btn" @onclick='() => SortBy("total")'>Total @Arrow("total")</button></th>
+                        <th><button type="button" class="sort-btn" @onclick='() => SortBy("status")'>Status @Arrow("status")</button></th>
+                        <th></th>
                     </tr>
-                }
-            </tbody>
-        </table>
+                </thead>
+                <tbody>
+                    @foreach (var order in Visible)
+                    {
+                        <tr>
+                            <td>
+                                <a class="text-link" href="@OrderHref(order)">@order.OrderNumber</a>
+                                @if (order.CanPay)
+                                {
+                                    <div class="muted">Unpaid</div>
+                                }
+                            </td>
+                            @if (_isAdmin)
+                            {
+                                <td>
+                                    @order.CustomerName
+                                    <div class="muted">@order.CustomerEmail</div>
+                                </td>
+                                <td>@(string.IsNullOrWhiteSpace(order.Phone) ? "—" : order.Phone)</td>
+                            }
+                            <td>@order.PickupDate.ToString("ddd d MMM") · @order.PickupWindow</td>
+                            <td>
+                                @foreach (var line in order.Items)
+                                {
+                                    <div>@line.Quantity × @line.ProductName</div>
+                                    @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                                    {
+                                        <div class="muted">@line.SlotLabel</div>
+                                    }
+                                }
+                            </td>
+                            <td>@CatalogFormatting.Money(order.Total)</td>
+                            <td>
+                                @if (_isAdmin)
+                                {
+                                    <select value="@order.Status" @onchange="e => ChangeStatusAsync(order, e)">
+                                        @foreach (var status in Enum.GetValues<OrderStatus>())
+                                        {
+                                            <option value="@status">@CatalogFormatting.StatusName(status)</option>
+                                        }
+                                    </select>
+                                }
+                                else
+                                {
+                                    @CatalogFormatting.StatusName(order.Status)
+                                }
+                            </td>
+                            <td>
+                                @if (order.CanPay && !_needsSquareKeys)
+                                {
+                                    <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
+                                }
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (!Visible.Any())
+        {
+            <p class="muted">No orders match those filters.</p>
+        }
     }
 </section>
 
 @code {
-    private IReadOnlyList<OrderSummary> _orders = [];
+    private IReadOnlyList<OrderSummary> _source = [];
+    private bool _isAdmin;
+    private string _orderNumber = string.Empty;
+    private string _firstName = string.Empty;
+    private string _email = string.Empty;
+    private string _phone = string.Empty;
+    private string _status = string.Empty;
+    private DateTime? _fromDate;
+    private string _sort = "when";
+    private bool _asc;
     private string? _paying;
     private StoreOptions Store => StoreAccessor.Value;
     private bool _needsSquareKeys =>
         PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
         && !PaymentAccessor.Value.Square.IsConfigured;
 
+    private IEnumerable<OrderSummary> Visible
+    {
+        get
+        {
+            IEnumerable<OrderSummary> rows = _source;
+            if (HasText(_orderNumber))
+            {
+                rows = rows.Where(o => Contains(o.OrderNumber, _orderNumber));
+            }
+
+            if (_isAdmin && HasText(_firstName))
+            {
+                rows = rows.Where(o => Contains(FirstName(o.CustomerName), _firstName));
+            }
+
+            if (_isAdmin && HasText(_email))
+            {
+                rows = rows.Where(o => Contains(o.CustomerEmail, _email));
+            }
+
+            if (_isAdmin && HasText(_phone))
+            {
+                rows = rows.Where(o => Contains(Digits(o.Phone), Digits(_phone)) || Contains(o.Phone, _phone));
+            }
+
+            if (Enum.TryParse<OrderStatus>(_status, out var status))
+            {
+                rows = rows.Where(o => o.Status == status);
+            }
+
+            if (_fromDate is DateTime from)
+            {
+                var day = DateOnly.FromDateTime(from);
+                rows = rows.Where(o => o.PickupDate >= day);
+            }
+
+            return _sort switch
+            {
+                "number" => Order(rows, o => o.OrderNumber),
+                "customer" => Order(rows, o => o.CustomerName),
+                "phone" => Order(rows, o => o.Phone ?? string.Empty),
+                "total" => Order(rows, o => o.Total),
+                "status" => Order(rows, o => o.Status.ToString()),
+                _ => Order(rows, o => o.PickupDate)
+            };
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
         var state = await Auth.GetAuthenticationStateAsync();
         var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
             ?? throw new InvalidOperationException("Please sign in again.");
-        _orders = await Orders.GetMineAsync(userId);
+        _isAdmin = state.User.IsInRole(AppRoles.Admin);
+        _source = _isAdmin
+            ? await Orders.GetAllAsync()
+            : await Orders.GetMineAsync(userId);
+    }
+
+    private void SortBy(string column)
+    {
+        if (_sort == column)
+        {
+            _asc = !_asc;
+            return;
+        }
+
+        _sort = column;
+        _asc = column is "number" or "customer";
+    }
+
+    private string Arrow(string column) =>
+        _sort == column ? (_asc ? "↑" : "↓") : "";
+
+    private string OrderHref(OrderSummary order) =>
+        _isAdmin ? $"/admin/orders/{order.OrderNumber}" : $"/checkout/confirmation/{order.OrderNumber}";
+
+    private async Task ChangeStatusAsync(OrderSummary order, ChangeEventArgs args)
+    {
+        if (!Enum.TryParse<OrderStatus>(args.Value?.ToString(), out var status))
+        {
+            return;
+        }
+
+        try
+        {
+            await Orders.UpdateStatusAsync(order.Id, status);
+            _source = await Orders.GetAllAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
     }
 
     private async Task PayAsync(OrderSummary order)
@@ -100,4 +281,23 @@
             _paying = null;
         }
     }
+
+    private IEnumerable<OrderSummary> Order<T>(IEnumerable<OrderSummary> rows, Func<OrderSummary, T> key) =>
+        _asc ? rows.OrderBy(key) : rows.OrderByDescending(key);
+
+    private static string FirstName(string name)
+    {
+        var trimmed = name.Trim();
+        var space = trimmed.IndexOf(' ');
+        return space < 0 ? trimmed : trimmed[..space];
+    }
+
+    private static bool HasText(string? value) => !string.IsNullOrWhiteSpace(value);
+
+    private static bool Contains(string? value, string query) =>
+        !string.IsNullOrWhiteSpace(value)
+        && value.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase);
+
+    private static string Digits(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : new string(value.Where(char.IsDigit).ToArray());
 }

@@ -23,7 +23,7 @@ public static class OfferCatalog
         "Harvest",
         "Eggs and vegetables picked from the same Sydney beds.",
         "What is ready that week leaves the gate as eggs, greens, tomatoes, and whatever the beds are happiest growing. Admin manage this list — if it is not in the shop, it is still in the soil.",
-        "/images/greens.svg",
+        "/images/fresh-produce.jpg",
         [ProductCategory.Eggs, ProductCategory.Veggies],
         false);
 

@@ -1,6 +1,6 @@
 # Asha Nandanvan
 
-A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.php?id=61587331501473) backyard in Sydney: fresh garden produce, dog sitting, composting education tours, and take-home worms and black gold.
+A .NET 10 Blazor site for the [Asha Nandanvan](https://www.facebook.com/profile.php?id=61587497242988) backyard in Sydney: fresh garden produce, dog sitting, composting education tours, and take-home worms and black gold. Also on [Instagram](https://www.instagram.com/ashanandanvan/) and [YouTube](https://www.youtube.com/@ashanandanvan).
 
 ## Stack
 

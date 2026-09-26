@@ -25,7 +25,7 @@
                 <NavLink href="/how-we-live">How we live</NavLink>
                 <NavLink href="/visit">Visit</NavLink>
                 <AuthorizeView>
-                    <NavLink href="/orders">My orders</NavLink>
+                    <NavLink href="/orders">@(context.User.IsInRole(AppRoles.Admin) ? "All orders" : "My orders")</NavLink>
                 </AuthorizeView>
                 <AuthorizeView Roles="@AppRoles.Admin">
                     <NavLink href="/admin/products">Admin</NavLink>
@@ -63,7 +63,7 @@
                     <NavLink href="/how-we-live" @onclick="CloseMenu">How we live</NavLink>
                     <NavLink href="/visit" @onclick="CloseMenu">Visit</NavLink>
                     <AuthorizeView>
-                        <NavLink href="/orders" @onclick="CloseMenu">My orders</NavLink>
+                        <NavLink href="/orders" @onclick="CloseMenu">@(context.User.IsInRole(AppRoles.Admin) ? "All orders" : "My orders")</NavLink>
                     </AuthorizeView>
                     <AuthorizeView Roles="@AppRoles.Admin">
                         <NavLink href="/admin/products" @onclick="CloseMenu">Admin</NavLink>
@@ -73,16 +73,18 @@
         }
     </header>
 
-    @if (IsAdminSection)
-    {
-        <div class="admin-tabs">
-            <div class="shell admin-tabs__inner">
-                <NavLink href="/admin/products">Products</NavLink>
-                <NavLink href="/admin/dog-sitting">Dog sitting</NavLink>
-                <NavLink href="/admin/orders">Orders</NavLink>
+    <AuthorizeView Roles="@AppRoles.Admin">
+        @if (ShowAdminTabs)
+        {
+            <div class="admin-tabs">
+                <div class="shell admin-tabs__inner">
+                    <NavLink href="/admin/products">Products</NavLink>
+                    <NavLink href="/admin/dog-sitting">Dog sitting</NavLink>
+                    <NavLink href="/orders">Orders</NavLink>
+                </div>
             </div>
-        </div>
-    }
+        }
+    </AuthorizeView>
 
     <main class="main">
         @Body
@@ -99,7 +101,7 @@
                 <p>@Store.Value.PickupHours</p>
             </div>
             <div>
-                <a href="@Store.Value.FacebookUrl" target="_blank" rel="noreferrer">Facebook</a>
+                <SocialLinks />
                 <a href="/#offers">What we offer</a>
             </div>
         </div>
@@ -111,7 +113,15 @@
     private bool _menuOpen;
     private readonly MudTheme _theme = ThemeFactory.Create();
 
-    private bool IsAdminSection => Navigation.ToBaseRelativePath(Navigation.Uri).StartsWith("admin", StringComparison.OrdinalIgnoreCase);
+    private bool ShowAdminTabs
+    {
+        get
+        {
+            var path = Navigation.ToBaseRelativePath(Navigation.Uri);
+            return path.StartsWith("admin", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("orders", StringComparison.OrdinalIgnoreCase);
+        }
+    }
     private string LoginHref => $"/account/login?returnUrl=/{Navigation.ToBaseRelativePath(Navigation.Uri)}";
 
     protected override async Task OnAfterRenderAsync(bool firstRender)

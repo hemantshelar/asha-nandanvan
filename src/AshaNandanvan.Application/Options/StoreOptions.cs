@@ -25,7 +25,15 @@ public sealed class StoreOptions
 
     [Required]
     [Url]
-    public string FacebookUrl { get; set; } = "https://www.facebook.com/profile.php?id=61587331501473";
+    public string FacebookUrl { get; set; } = "https://www.facebook.com/profile.php?id=61587497242988";
+
+    [Required]
+    [Url]
+    public string InstagramUrl { get; set; } = "https://www.instagram.com/ashanandanvan/";
+
+    [Required]
+    [Url]
+    public string YouTubeUrl { get; set; } = "https://www.youtube.com/@ashanandanvan";
 
     [Required]
     public string Currency { get; set; } = "AUD";
