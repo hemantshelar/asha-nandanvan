@@ -24,6 +24,7 @@
                 <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
                 <NavLink href="/how-we-live">How we live</NavLink>
                 <NavLink href="/visit">Visit</NavLink>
+                <NavLink href="/media">Media</NavLink>
                 <AuthorizeView>
                     <NavLink href="/orders">@(context.User.IsInRole(AppRoles.Admin) ? "All orders" : "My orders")</NavLink>
                 </AuthorizeView>
@@ -62,6 +63,7 @@
                     <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
                     <NavLink href="/how-we-live" @onclick="CloseMenu">How we live</NavLink>
                     <NavLink href="/visit" @onclick="CloseMenu">Visit</NavLink>
+                    <NavLink href="/media" @onclick="CloseMenu">Media</NavLink>
                     <AuthorizeView>
                         <NavLink href="/orders" @onclick="CloseMenu">@(context.User.IsInRole(AppRoles.Admin) ? "All orders" : "My orders")</NavLink>
                     </AuthorizeView>
@@ -80,6 +82,7 @@
                 <div class="shell admin-tabs__inner">
                     <NavLink href="/admin/products">Products</NavLink>
                     <NavLink href="/admin/dog-sitting">Dog sitting</NavLink>
+                    <NavLink href="/media">Media</NavLink>
                     <NavLink href="/orders">Orders</NavLink>
                 </div>
             </div>
@@ -103,6 +106,7 @@
             <div>
                 <SocialLinks />
                 <a href="/#offers">What we offer</a>
+                <a href="/media">Media</a>
             </div>
         </div>
     </footer>
@@ -119,7 +123,8 @@
         {
             var path = Navigation.ToBaseRelativePath(Navigation.Uri);
             return path.StartsWith("admin", StringComparison.OrdinalIgnoreCase)
-                || path.StartsWith("orders", StringComparison.OrdinalIgnoreCase);
+                || path.StartsWith("orders", StringComparison.OrdinalIgnoreCase)
+                || path.StartsWith("media", StringComparison.OrdinalIgnoreCase);
         }
     }
     private string LoginHref => $"/account/login?returnUrl=/{Navigation.ToBaseRelativePath(Navigation.Uri)}";

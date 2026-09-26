@@ -1,11 +1,13 @@
 using AshaNandanvan.Application.Options;
 using AshaNandanvan.Application.DogSitting;
+using AshaNandanvan.Application.Media;
 using AshaNandanvan.Application.Orders;
 using AshaNandanvan.Application.Payments;
 using AshaNandanvan.Application.Products;
 using AshaNandanvan.Infrastructure.Data;
 using AshaNandanvan.Infrastructure.DogSitting;
 using AshaNandanvan.Infrastructure.Identity;
+using AshaNandanvan.Infrastructure.Media;
 using AshaNandanvan.Infrastructure.Orders;
 using AshaNandanvan.Infrastructure.Payments;
 using AshaNandanvan.Infrastructure.Products;
@@ -41,6 +43,7 @@ public static class DependencyInjection
 
         services.AddScoped<IProductService, ProductService>();
         services.AddScoped<IDogSittingService, DogSittingService>();
+        services.AddScoped<IMediaService, MediaService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<DatabaseSeeder>();
         services.AddScoped<StripePaymentProvider>();

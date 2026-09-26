@@ -1,5 +1,6 @@
 @page "/offer/{Slug}"
 @inject IProductService Products
+@inject IMediaService MediaItems
 @inject NavigationManager Navigation
 
 <PageTitle>@(_offer?.Title ?? "Offer") — Asha Nandanvan</PageTitle>
@@ -53,12 +54,28 @@ else
             </div>
         }
     </section>
+
+    @if (_clips.Count > 0)
+    {
+        <section class="band band--alt">
+            <div class="shell">
+                <p class="eyebrow section-kicker">From the backyard</p>
+                <div class="section-head">
+                    <h2>Media</h2>
+                    <a class="text-link" href="/media?offer=@_offer.Slug">See all</a>
+                </div>
+                <p class="lede">What this offer looks like in the garden.</p>
+                <MediaStrip Clips="_clips" Compact="true" />
+            </div>
+        </section>
+    }
 }
 
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
     private OfferDefinition? _offer;
     private IReadOnlyList<ProductListItem> _products = [];
+    private IReadOnlyList<MediaClip> _clips = [];
     private string _petName = string.Empty;
 
     protected override async Task OnParametersSetAsync()
@@ -71,5 +88,6 @@ else
         }
 
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
+        _clips = await MediaItems.GetPublishedAsync(_offer.Slug);
     }
 }

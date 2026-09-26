@@ -1,0 +1,9 @@
+@page "/admin/media"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject NavigationManager Navigation
+
+<PageTitle>Media — Admin</PageTitle>
+
+@code {
+    protected override void OnInitialized() => Navigation.NavigateTo("/media");
+}

@@ -1,0 +1,200 @@
+@page "/media"
+@inject IMediaService MediaItems
+@inject AuthenticationStateProvider Auth
+@inject ISnackbar Snackbar
+
+<PageTitle>Media — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell section-head">
+        <div>
+            <p class="eyebrow">From the backyard</p>
+            <h1>Media</h1>
+            <p class="lede">Clips from the garden, grouped the same way as what we offer.</p>
+        </div>
+        @if (_isAdmin)
+        {
+            <button class="btn btn--solid" type="button" @onclick="StartAdd">Add clip</button>
+        }
+    </div>
+</section>
+
+<section class="shell">
+    <div class="filters">
+        <a class="chip @Active(null)" href="/media">All</a>
+        @foreach (var offer in OfferCatalog.All)
+        {
+            <a class="chip @Active(offer.Slug)" href="/media?offer=@offer.Slug">@offer.Eyebrow</a>
+        }
+    </div>
+
+    @if (_isAdmin && _formOpen)
+    {
+        <form class="admin-form panel media-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+            <h2>@(_model.Id is int ? "Edit clip" : "Add clip")</h2>
+            <label>
+                YouTube link
+                <input @bind="_model.SourceUrl" placeholder="https://youtu.be/your-video" required />
+            </label>
+            <label>
+                Title
+                <input @bind="_model.Title" placeholder="Optional — we can name it after the offer" />
+            </label>
+            <label>
+                Offer
+                <select @bind="_model.OfferSlug" required>
+                    @foreach (var offer in OfferCatalog.All)
+                    {
+                        <option value="@offer.Slug">@offer.Title</option>
+                    }
+                </select>
+            </label>
+            <label>
+                Sort order
+                <input type="number" @bind="_model.SortOrder" />
+            </label>
+            <label class="check">
+                <input type="checkbox" @bind="_model.IsPublished" />
+                Published
+            </label>
+            <button class="btn btn--solid" type="submit" disabled="@_busy">Save</button>
+            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="CancelForm">Cancel</button>
+        </form>
+    }
+
+    @if (_clips.Count == 0)
+    {
+        <p class="muted">@(_isAdmin ? "No clips in this group yet. Add a YouTube link to get started." : "No clips in this group yet.")</p>
+    }
+    else
+    {
+        <MediaStrip Clips="_clips" CanManage="_isAdmin" Edit="StartEdit" Delete="DeleteAsync" />
+    }
+</section>
+
+@code {
+    [SupplyParameterFromQuery(Name = "offer")] public string? Offer { get; set; }
+
+    private IReadOnlyList<MediaClip> _clips = [];
+    private bool _isAdmin;
+    private bool _formOpen;
+    private bool _busy;
+    private MediaEditModel _model = NewModel(null);
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        _isAdmin = state.User.IsInRole(AppRoles.Admin);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _clips = _isAdmin
+            ? FilterAdmin(await MediaItems.GetAllAsync())
+            : await MediaItems.GetPublishedAsync(CurrentSlug());
+    }
+
+    private IReadOnlyList<MediaClip> FilterAdmin(IReadOnlyList<MediaClip> clips)
+    {
+        var slug = CurrentSlug();
+        if (slug is null)
+        {
+            return clips;
+        }
+
+        return clips.Where(c => c.OfferSlug == slug).ToList();
+    }
+
+    private string? CurrentSlug()
+    {
+        var slug = string.IsNullOrWhiteSpace(Offer) ? null : Offer.Trim();
+        return slug is not null && OfferCatalog.Find(slug) is not null ? slug : null;
+    }
+
+    private void StartAdd()
+    {
+        _model = NewModel(CurrentSlug());
+        _formOpen = true;
+    }
+
+    private void StartEdit(MediaClip clip)
+    {
+        _model = new MediaEditModel
+        {
+            Id = clip.Id,
+            OfferSlug = clip.OfferSlug,
+            Title = clip.Title,
+            SourceUrl = clip.SourceUrl,
+            SortOrder = clip.SortOrder,
+            IsPublished = clip.IsPublished
+        };
+        _formOpen = true;
+    }
+
+    private void CancelForm()
+    {
+        _formOpen = false;
+        _model = NewModel(CurrentSlug());
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            if (_model.Id is int)
+            {
+                await MediaItems.UpdateAsync(_model);
+                Snackbar.Add("Clip saved.", Severity.Success);
+            }
+            else
+            {
+                await MediaItems.CreateAsync(_model);
+                Snackbar.Add("Clip added.", Severity.Success);
+            }
+
+            _formOpen = false;
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteAsync(MediaClip clip)
+    {
+        try
+        {
+            await MediaItems.DeleteAsync(clip.Id);
+            if (_model.Id == clip.Id)
+            {
+                CancelForm();
+            }
+
+            Snackbar.Add("Clip deleted.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    private string Active(string? slug) =>
+        string.Equals(Offer, slug, StringComparison.OrdinalIgnoreCase)
+        || (slug is null && string.IsNullOrWhiteSpace(Offer))
+            ? "chip--active"
+            : string.Empty;
+
+    private static MediaEditModel NewModel(string? offerSlug) => new()
+    {
+        OfferSlug = offerSlug ?? OfferCatalog.FreshProduce.Slug,
+        IsPublished = true
+    };
+}

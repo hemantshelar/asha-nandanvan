@@ -1,0 +1,139 @@
+@page "/admin/media/edit"
+@page "/admin/media/edit/{Id:int}"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IMediaService MediaItems
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@(Id.HasValue ? "Edit clip" : "Add clip") — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>@(Id.HasValue ? "Edit clip" : "Add clip")</h1>
+    </div>
+</section>
+
+<section class="shell">
+    <form class="admin-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
+        <label>
+            YouTube link
+            <input @bind="_model.SourceUrl" placeholder="https://youtu.be/your-video" required />
+        </label>
+        <label>
+            Title
+            <input @bind="_model.Title" placeholder="Optional — we can name it after the offer" />
+        </label>
+        <label>
+            Offer
+            <select @bind="_model.OfferSlug" required>
+                <option value="">Pick an offer</option>
+                @foreach (var offer in OfferCatalog.All)
+                {
+                    <option value="@offer.Slug">@offer.Title</option>
+                }
+            </select>
+        </label>
+        <label>
+            Sort order
+            <input type="number" @bind="_model.SortOrder" />
+        </label>
+        <label class="check">
+            <input type="checkbox" @bind="_model.IsPublished" />
+            Published
+        </label>
+        <button class="btn btn--solid" type="submit" disabled="@_busy">Save</button>
+        @if (Id is int)
+        {
+            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="DeleteAsync">Delete</button>
+        }
+    </form>
+</section>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private MediaEditModel _model = new() { OfferSlug = OfferCatalog.FreshProduce.Slug, IsPublished = true };
+    private bool _busy;
+    private int? _loadedId = -1;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (_loadedId == Id)
+        {
+            return;
+        }
+
+        _loadedId = Id;
+        if (Id is not int id)
+        {
+            return;
+        }
+
+        var clip = await MediaItems.GetByIdAsync(id);
+        if (clip is null)
+        {
+            Navigation.NavigateTo("/admin/media");
+            return;
+        }
+
+        _model = new MediaEditModel
+        {
+            Id = clip.Id,
+            OfferSlug = clip.OfferSlug,
+            Title = clip.Title,
+            SourceUrl = clip.SourceUrl,
+            SortOrder = clip.SortOrder,
+            IsPublished = clip.IsPublished
+        };
+    }
+
+    private async Task SaveAsync()
+    {
+        _busy = true;
+        try
+        {
+            if (Id is int)
+            {
+                await MediaItems.UpdateAsync(_model);
+            }
+            else
+            {
+                await MediaItems.CreateAsync(_model);
+            }
+
+            Navigation.NavigateTo("/admin/media");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (Id is not int id)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await MediaItems.DeleteAsync(id);
+            Navigation.NavigateTo("/admin/media");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

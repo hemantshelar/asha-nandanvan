@@ -1,0 +1,60 @@
+@if (Clips.Count > 0)
+{
+    <div class="@(Compact ? "show-row" : "media-grid")">
+        @foreach (var clip in Clips)
+        {
+            <article class="media-card">
+                <button type="button" class="media-card__hit" @onclick="() => Play(clip)">
+                    <span class="media-card__still">
+                        <img src="@clip.ThumbnailUrl" alt="" />
+                        <span class="media-card__play">Play</span>
+                    </span>
+                    <span class="eyebrow">@clip.OfferEyebrow</span>
+                    <strong>@clip.Title</strong>
+                </button>
+                @if (CanManage)
+                {
+                    <div class="media-card__admin">
+                        @if (!clip.IsPublished)
+                        {
+                            <span class="muted">Draft</span>
+                        }
+                        <button type="button" class="text-link" @onclick="() => Edit.InvokeAsync(clip)">Edit</button>
+                        <button type="button" class="text-link" @onclick="() => Delete.InvokeAsync(clip)">Delete</button>
+                    </div>
+                }
+            </article>
+        }
+    </div>
+}
+
+@if (_playing is not null)
+{
+    <div class="media-modal" @onclick="Close">
+        <div class="media-modal__panel" @onclick:stopPropagation="true">
+            <div class="media-modal__head">
+                <h2>@_playing.Title</h2>
+                <button type="button" class="text-link" @onclick="Close">Close</button>
+            </div>
+            <div class="media-modal__frame">
+                <iframe src="@_playing.EmbedUrl"
+                        title="@_playing.Title"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<MediaClip> Clips { get; set; } = [];
+    [Parameter] public bool Compact { get; set; }
+    [Parameter] public bool CanManage { get; set; }
+    [Parameter] public EventCallback<MediaClip> Edit { get; set; }
+    [Parameter] public EventCallback<MediaClip> Delete { get; set; }
+
+    private MediaClip? _playing;
+
+    private void Play(MediaClip clip) => _playing = clip;
+    private void Close() => _playing = null;
+}

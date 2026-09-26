@@ -18,6 +18,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<DogSittingSettings> DogSittingSettings => Set<DogSittingSettings>();
+    public DbSet<MediaItem> MediaItems => Set<MediaItem>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -100,6 +101,15 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(s => s.Headline).HasMaxLength(160).IsRequired();
             entity.Property(s => s.Description).IsRequired();
             entity.Property(s => s.TermsAndConditions).IsRequired();
+        });
+
+        builder.Entity<MediaItem>(entity =>
+        {
+            entity.Property(m => m.OfferSlug).HasMaxLength(80).IsRequired();
+            entity.Property(m => m.Title).HasMaxLength(160).IsRequired();
+            entity.Property(m => m.SourceUrl).HasMaxLength(500).IsRequired();
+            entity.Property(m => m.YouTubeVideoId).HasMaxLength(20).IsRequired();
+            entity.HasIndex(m => new { m.OfferSlug, m.SortOrder });
         });
     }
 }
