@@ -78,7 +78,7 @@ public sealed class StripePaymentProvider : IPaymentProvider
         var session = await new SessionService().GetAsync(sessionId, cancellationToken: cancellationToken);
         if (session.PaymentStatus is "paid" or "no_payment_required" || session.Status == "complete")
         {
-            await _orders.MarkPaidAsync(orderNumber, session.PaymentIntentId ?? session.Id, cancellationToken);
+            await _orders.MarkPaidAsync(orderNumber, session.PaymentIntentId ?? session.Id, Name, cancellationToken);
         }
     }
 
@@ -120,7 +120,7 @@ public sealed class StripePaymentProvider : IPaymentProvider
             return;
         }
 
-        await _orders.MarkPaidAsync(orderNumber, session.PaymentIntentId ?? session.Id, cancellationToken);
+        await _orders.MarkPaidAsync(orderNumber, session.PaymentIntentId ?? session.Id, Name, cancellationToken);
         _logger.LogInformation("Stripe marked order {OrderNumber} as paid.", orderNumber);
     }
 }

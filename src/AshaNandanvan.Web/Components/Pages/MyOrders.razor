@@ -1,0 +1,103 @@
+@page "/orders"
+@attribute [Authorize]
+@inject IOrderService Orders
+@inject IPaymentProvider Payment
+@inject IOptions<StoreOptions> StoreAccessor
+@inject IOptions<PaymentOptions> PaymentAccessor
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>My orders — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Your account</p>
+        <h1>My orders</h1>
+        <p class="lede">Pay a placed order online whenever you are ready, or settle in cash at the backyard.</p>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_orders.Count == 0)
+    {
+        <p>You have no orders yet.</p>
+        <a class="btn btn--solid" href="/#offers">See what we offer</a>
+    }
+    else
+    {
+        <table class="cart-table">
+            <thead>
+                <tr>
+                    <th>Order</th>
+                    <th>When</th>
+                    <th>Items</th>
+                    <th>Total</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var order in _orders)
+                {
+                    <tr>
+                        <td>
+                            <a class="text-link" href="/checkout/confirmation/@order.OrderNumber">@order.OrderNumber</a>
+                        </td>
+                        <td>@order.PickupDate.ToString("ddd d MMM") · @order.PickupWindow</td>
+                        <td>
+                            @foreach (var line in order.Items)
+                            {
+                                <div>@line.Quantity × @line.ProductName</div>
+                                @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                                {
+                                    <div class="muted">@line.SlotLabel</div>
+                                }
+                            }
+                        </td>
+                        <td>@CatalogFormatting.Money(order.Total)</td>
+                        <td>@CatalogFormatting.StatusName(order.Status)</td>
+                        <td>
+                            @if (order.CanPay && !_needsSquareKeys)
+                            {
+                                <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
+                            }
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<OrderSummary> _orders = [];
+    private string? _paying;
+    private StoreOptions Store => StoreAccessor.Value;
+    private bool _needsSquareKeys =>
+        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
+        && !PaymentAccessor.Value.Square.IsConfigured;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new InvalidOperationException("Please sign in again.");
+        _orders = await Orders.GetMineAsync(userId);
+    }
+
+    private async Task PayAsync(OrderSummary order)
+    {
+        _paying = order.OrderNumber;
+        try
+        {
+            var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(order, Store.Currency));
+            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            _paying = null;
+        }
+    }
+}

@@ -19,7 +19,7 @@ public sealed class OrderService : IOrderService
         _dogSitting = dogSitting;
     }
 
-    public async Task<OrderSummary> CreatePendingOrderAsync(string userId, CheckoutRequest request, CancellationToken cancellationToken = default)
+    public async Task<OrderSummary> CreateOrderAsync(string userId, CheckoutRequest request, bool payNow, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var cart = await db.Carts
@@ -87,7 +87,7 @@ public sealed class OrderService : IOrderService
             Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim(),
             PickupDate = request.PickupDate,
             PickupWindow = request.PickupWindow,
-            Status = OrderStatus.PendingPayment,
+            Status = payNow ? OrderStatus.PendingPayment : OrderStatus.Placed,
             Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt)),
             PaymentProvider = string.Empty,
             CreatedAt = now,
@@ -110,8 +110,28 @@ public sealed class OrderService : IOrderService
         };
 
         db.Orders.Add(order);
+
+        if (!payNow)
+        {
+            await ReserveInventoryAsync(db, order, cancellationToken);
+            cart.Items.Clear();
+            cart.UpdatedAt = now;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
         return ToSummary(order);
+    }
+
+    public async Task<IReadOnlyList<OrderSummary>> GetMineAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var orders = await db.Orders.AsNoTracking()
+            .Include(o => o.Items)
+            .Where(o => o.UserId == userId)
+            .OrderByDescending(o => o.CreatedAt)
+            .ToListAsync(cancellationToken);
+
+        return orders.Select(ToSummary).ToList();
     }
 
     public async Task<OrderSummary?> GetByNumberAsync(string orderNumber, string? userId = null, bool admin = false, CancellationToken cancellationToken = default)
@@ -141,26 +161,94 @@ public sealed class OrderService : IOrderService
     public async Task UpdateStatusAsync(int orderId, OrderStatus status, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
+        var order = await db.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId, cancellationToken)
             ?? throw new InvalidOperationException("Order was not found.");
 
-        order.Status = status;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
+        if (status == OrderStatus.Paid && order.Status.IsUnpaid())
+        {
+            await MarkPaidCoreAsync(db, order, "admin", "Admin", cancellationToken);
+        }
+        else if (status == OrderStatus.Cancelled && order.Status == OrderStatus.Placed)
+        {
+            await RestoreInventoryAsync(db, order, cancellationToken);
+            order.Status = OrderStatus.Cancelled;
+            order.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+        else
+        {
+            order.Status = status;
+            order.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task MarkPaidAsync(string orderNumber, string paymentReference, CancellationToken cancellationToken = default)
+    public async Task MarkPaidAsync(string orderNumber, string paymentReference, string? provider = null, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var order = await db.Orders
             .Include(o => o.Items)
             .FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
 
-        if (order is null || order.Status != OrderStatus.PendingPayment)
+        if (order is null || !order.Status.IsUnpaid())
         {
             return;
         }
 
+        await MarkPaidCoreAsync(db, order, paymentReference, provider, cancellationToken);
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    public async Task AttachPaymentSessionAsync(string orderNumber, string provider, string? reference, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
+        if (order is null)
+        {
+            return;
+        }
+
+        order.PaymentProvider = provider;
+        if (!string.IsNullOrWhiteSpace(reference))
+        {
+            order.PaymentReference = reference;
+        }
+
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task MarkPaidCoreAsync(
+        AppDbContext db,
+        Order order,
+        string paymentReference,
+        string? provider,
+        CancellationToken cancellationToken)
+    {
+        if (order.Status == OrderStatus.PendingPayment)
+        {
+            await ReserveInventoryAsync(db, order, cancellationToken);
+        }
+
+        order.Status = OrderStatus.Paid;
+        order.PaymentReference = paymentReference;
+        if (!string.IsNullOrWhiteSpace(provider))
+        {
+            order.PaymentProvider = provider;
+        }
+
+        order.UpdatedAt = DateTimeOffset.UtcNow;
+
+        var carts = await db.Carts.Include(c => c.Items).Where(c => c.UserId == order.UserId).ToListAsync(cancellationToken);
+        foreach (var cart in carts)
+        {
+            cart.Items.Clear();
+            cart.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+    }
+
+    private async Task ReserveInventoryAsync(AppDbContext db, Order order, CancellationToken cancellationToken)
+    {
         foreach (var line in order.Items)
         {
             var product = await db.Products.FirstAsync(p => p.Id == line.ProductId, cancellationToken);
@@ -193,38 +281,25 @@ public sealed class OrderService : IOrderService
 
             product.UpdatedAt = DateTimeOffset.UtcNow;
         }
-
-        order.Status = OrderStatus.Paid;
-        order.PaymentReference = paymentReference;
-        order.UpdatedAt = DateTimeOffset.UtcNow;
-
-        var carts = await db.Carts.Include(c => c.Items).Where(c => c.UserId == order.UserId).ToListAsync(cancellationToken);
-        foreach (var cart in carts)
-        {
-            cart.Items.Clear();
-            cart.UpdatedAt = DateTimeOffset.UtcNow;
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
     }
 
-    public async Task AttachPaymentSessionAsync(string orderNumber, string provider, string? reference, CancellationToken cancellationToken = default)
+    private static async Task RestoreInventoryAsync(AppDbContext db, Order order, CancellationToken cancellationToken)
     {
-        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var order = await db.Orders.FirstOrDefaultAsync(o => o.OrderNumber == orderNumber, cancellationToken);
-        if (order is null)
+        foreach (var line in order.Items)
         {
-            return;
-        }
+            var product = await db.Products.FirstAsync(p => p.Id == line.ProductId, cancellationToken);
+            if (product.Category.RequiresBooking() && line.ProductSlotId is int slotId)
+            {
+                var slot = await db.ProductSlots.FirstAsync(s => s.Id == slotId, cancellationToken);
+                slot.BookedCount = Math.Max(0, slot.BookedCount - line.Quantity);
+            }
+            else if (product.Category != ProductCategory.DogSitting)
+            {
+                product.Stock += line.Quantity;
+            }
 
-        order.PaymentProvider = provider;
-        if (!string.IsNullOrWhiteSpace(reference))
-        {
-            order.PaymentReference = reference;
+            product.UpdatedAt = DateTimeOffset.UtcNow;
         }
-
-        order.UpdatedAt = DateTimeOffset.UtcNow;
-        await db.SaveChangesAsync(cancellationToken);
     }
 
     private static OrderSummary ToSummary(Order order) =>
@@ -240,5 +315,6 @@ public sealed class OrderService : IOrderService
             order.Phone,
             order.CreatedAt,
             order.Items.Select(i => new OrderLineSummary(i.ProductName, i.Unit, i.Quantity, i.UnitPrice, i.SlotLabel)).ToList(),
-            order.PaymentReference);
+            order.PaymentReference,
+            order.PaymentProvider);
 }

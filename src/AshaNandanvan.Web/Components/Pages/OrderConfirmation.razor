@@ -3,15 +3,17 @@
 @inject IOrderService Orders
 @inject IPaymentProvider Payment
 @inject IOptions<StoreOptions> StoreAccessor
+@inject IOptions<PaymentOptions> PaymentAccessor
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
 <PageTitle>Order @OrderNumber — Asha Nandanvan</PageTitle>
 
 <section class="page-hero">
     <div class="shell">
         <p class="eyebrow">Thank you</p>
-        <h1>Pickup reserved</h1>
+        <h1>@(_order?.Status == OrderStatus.Placed ? "Order placed" : "Pickup reserved")</h1>
     </div>
 </section>
 
@@ -24,10 +26,21 @@
     {
         <article class="panel">
             <p>Order <strong>@_order.OrderNumber</strong></p>
-            <p>Status: @_order.Status</p>
-            <p>Collect on @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
+            <p>Status: @CatalogFormatting.StatusName(_order.Status)</p>
+            <p>Visit / collect @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
             <p>@Store.PickupAddress</p>
-            <p>We will share the exact backyard gate after payment is confirmed.</p>
+            @if (_order.Status == OrderStatus.Placed)
+            {
+                <p>Pay when you are ready: cash at the backyard, online from <a href="/orders">My orders</a>, or by scanning this QR.</p>
+            }
+            else if (_order.CanPay)
+            {
+                <p>Payment is not finished yet. You can try online pay again below.</p>
+            }
+            else
+            {
+                <p>We will share the exact backyard gate after we confirm.</p>
+            }
             <ul>
                 @foreach (var line in _order.Items)
                 {
@@ -42,6 +55,18 @@
                 }
             </ul>
             <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+            @if (_order.CanPay)
+            {
+                <div class="pay-qr-block">
+                    <img class="pay-qr" src="@_qrUri" alt="Pay QR for @_order.OrderNumber" />
+                    <p class="muted">Scan to open the pay page, or keep this on your phone for the host.</p>
+                </div>
+                @if (!_needsSquareKeys)
+                {
+                    <button class="btn btn--solid" disabled="@_busy" @onclick="PayNowAsync">Pay this order online</button>
+                }
+            }
+            <p><a class="text-link" href="/orders">See all my orders</a></p>
         </article>
     }
 </section>
@@ -49,7 +74,12 @@
 @code {
     [Parameter] public string OrderNumber { get; set; } = string.Empty;
     private OrderSummary? _order;
+    private bool _busy;
+    private string _qrUri = string.Empty;
     private StoreOptions Store => StoreAccessor.Value;
+    private bool _needsSquareKeys =>
+        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
+        && !PaymentAccessor.Value.Square.IsConfigured;
 
     protected override async Task OnInitializedAsync()
     {
@@ -62,6 +92,31 @@
         var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         var isAdmin = state.User.IsInRole(AppRoles.Admin);
         _order = await Orders.GetByNumberAsync(OrderNumber, userId, isAdmin);
+        if (_order?.CanPay == true)
+        {
+            var payUrl = Navigation.ToAbsoluteUri($"/pay/{_order.OrderNumber}").ToString();
+            _qrUri = QrImages.PngDataUri(payUrl);
+        }
+    }
+
+    private async Task PayNowAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(_order, Store.Currency));
+            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            _busy = false;
+        }
     }
 
     private static string? FirstQuery(IDictionary<string, Microsoft.Extensions.Primitives.StringValues> query, params string[] keys)

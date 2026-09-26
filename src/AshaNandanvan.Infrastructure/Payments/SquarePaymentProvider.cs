@@ -119,7 +119,7 @@ public sealed class SquarePaymentProvider : IPaymentProvider
 
             if (IsPaid(orderResponse.Order))
             {
-                await _orders.MarkPaidAsync(orderNumber, squareOrderId, cancellationToken);
+                await _orders.MarkPaidAsync(orderNumber, squareOrderId, Name, cancellationToken);
                 _logger.LogInformation("Square marked order {OrderNumber} as paid.", orderNumber);
             }
         }
@@ -198,14 +198,14 @@ public sealed class SquarePaymentProvider : IPaymentProvider
             orderNumber = orderResponse.Order?.ReferenceId ?? orderResponse.Order?.TicketName;
             if (IsPaid(orderResponse.Order) && !string.IsNullOrWhiteSpace(orderNumber))
             {
-                await _orders.MarkPaidAsync(orderNumber, reference, cancellationToken);
+                await _orders.MarkPaidAsync(orderNumber, reference, Name, cancellationToken);
                 return;
             }
         }
 
         if (!string.IsNullOrWhiteSpace(orderNumber))
         {
-            await _orders.MarkPaidAsync(orderNumber, reference ?? type ?? "square", cancellationToken);
+            await _orders.MarkPaidAsync(orderNumber, reference ?? type ?? "square", Name, cancellationToken);
             _logger.LogInformation("Square webhook marked {OrderNumber} as paid ({Type}).", orderNumber, type);
         }
     }

@@ -13,6 +13,7 @@ public sealed class DogSittingService : IDogSittingService
 
     private static readonly OrderStatus[] ConfirmedStatuses =
     [
+        OrderStatus.Placed,
         OrderStatus.Paid,
         OrderStatus.ReadyForPickup
     ];
@@ -130,7 +131,7 @@ public sealed class DogSittingService : IDogSittingService
         string? warning = null;
         if (canBook && confirmed + pending + dogs > settings.MaxDogs)
         {
-            warning = $"{pending} more dog{(pending == 1 ? " is" : "s are")} held on pending (unpaid) bookings. Your stay is only confirmed after payment if a place is still free.";
+            warning = $"{pending} more dog{(pending == 1 ? " is" : "s are")} held on payment-started bookings. A placed or paid stay keeps the place.";
         }
         else if (!canBook && pending > 0)
         {
@@ -192,7 +193,7 @@ public sealed class DogSittingService : IDogSittingService
 
     public const string DefaultTerms =
         "One household per stay. Your dog must be vaccinated, flea-treated, and used to hens and a garden. "
-        + "Drop-off and pick-up are at the backyard. Payment holds the place; we confirm the stay once payment is received. "
+        + "Drop-off and pick-up are at the backyard. Placing the order holds the place; you can pay now or after the stay, in cash or online. "
         + "If five dogs are already confirmed for any part of your dates, we cannot take another. "
         + "Food, leads, and any medicine must come with the dog. We are a backyard, not a clinic.";
 

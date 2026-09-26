@@ -23,7 +23,11 @@ public sealed record OrderSummary(
     string? Phone,
     DateTimeOffset CreatedAt,
     IReadOnlyList<OrderLineSummary> Items,
-    string? PaymentReference = null);
+    string? PaymentReference = null,
+    string PaymentProvider = "")
+{
+    public bool CanPay => Status.IsUnpaid();
+}
 
 public sealed record OrderLineSummary(
     string ProductName,

@@ -1,0 +1,149 @@
+@page "/admin/orders/{OrderNumber}"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IOrderService Orders
+@inject IPaymentProvider Payment
+@inject IOptions<StoreOptions> StoreAccessor
+@inject IOptions<PaymentOptions> PaymentAccessor
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Order @OrderNumber — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>@_order?.OrderNumber</h1>
+        <p><a class="text-link" href="/admin/orders">Back to orders</a></p>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_order is null)
+    {
+        <p>Order was not found.</p>
+    }
+    else
+    {
+        <div class="stay-offer">
+            <article class="panel">
+                <p>Status: <strong>@CatalogFormatting.StatusName(_order.Status)</strong></p>
+                <p>@_order.CustomerName<br /><span class="muted">@_order.CustomerEmail</span></p>
+                @if (!string.IsNullOrWhiteSpace(_order.Phone))
+                {
+                    <p>Phone: @_order.Phone</p>
+                }
+                <p>Visit / collect @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
+                @if (!string.IsNullOrWhiteSpace(_order.PaymentProvider))
+                {
+                    <p>Payment: @_order.PaymentProvider @_order.PaymentReference</p>
+                }
+                <ul>
+                    @foreach (var line in _order.Items)
+                    {
+                        <li>
+                            @line.Quantity × @line.ProductName
+                            @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                            {
+                                <text> (@line.SlotLabel)</text>
+                            }
+                            — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)
+                        </li>
+                    }
+                </ul>
+                <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+                @if (_order.CanPay)
+                {
+                    <div class="checkout__actions">
+                        <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="MarkCashAsync">Mark paid (cash)</button>
+                        <button class="btn btn--solid" type="button" disabled="@(_busy || _needsSquareKeys)" @onclick="StartOnlineAsync">Start online pay</button>
+                    </div>
+                }
+            </article>
+            @if (_order.CanPay)
+            {
+                <article class="panel">
+                    <h2>Customer pay QR</h2>
+                    <p class="muted">Show this on your phone. They scan it, open the pay page, and finish on Square.</p>
+                    <div class="pay-qr-block">
+                        <img class="pay-qr" src="@_qrUri" alt="Payment QR for @_order.OrderNumber" />
+                    </div>
+                    <p class="muted">@_payUrl</p>
+                    <p>Order @_order.OrderNumber · @CatalogFormatting.Money(_order.Total)</p>
+                </article>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public string OrderNumber { get; set; } = string.Empty;
+    private OrderSummary? _order;
+    private bool _busy;
+    private string _payUrl = string.Empty;
+    private string _qrUri = string.Empty;
+    private StoreOptions Store => StoreAccessor.Value;
+    private bool _needsSquareKeys =>
+        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
+        && !PaymentAccessor.Value.Square.IsConfigured;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        _order = await Orders.GetByNumberAsync(OrderNumber, admin: true);
+        if (_order is null)
+        {
+            return;
+        }
+
+        _payUrl = Navigation.ToAbsoluteUri($"/pay/{_order.OrderNumber}").ToString();
+        _qrUri = QrImages.PngDataUri(_payUrl);
+    }
+
+    private async Task MarkCashAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            await Orders.MarkPaidAsync(_order.OrderNumber, "cash", "Cash");
+            Snackbar.Add("Marked as paid in cash.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task StartOnlineAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(_order, Store.Currency));
+            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+            _busy = false;
+        }
+    }
+}

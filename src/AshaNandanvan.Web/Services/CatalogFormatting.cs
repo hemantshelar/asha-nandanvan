@@ -15,4 +15,6 @@ public static class CatalogFormatting
     };
 
     public static string Money(decimal amount) => amount.ToString("C");
+
+    public static string StatusName(OrderStatus status) => status.DisplayName();
 }

@@ -1,0 +1,95 @@
+@page "/pay/{OrderNumber}"
+@inject IOrderService Orders
+@inject IPaymentProvider Payment
+@inject IOptions<StoreOptions> StoreAccessor
+@inject IOptions<PaymentOptions> PaymentAccessor
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Pay @OrderNumber — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Pay online</p>
+        <h1>Pay this order</h1>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_order is null)
+    {
+        <p>We could not find that order.</p>
+    }
+    else
+    {
+        <article class="panel pay-panel">
+            <p>Order <strong>@_order.OrderNumber</strong> for @_order.CustomerName</p>
+            <p>Status: @CatalogFormatting.StatusName(_order.Status)</p>
+            <ul>
+                @foreach (var line in _order.Items)
+                {
+                    <li>
+                        @line.Quantity × @line.ProductName
+                        @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                        {
+                            <text> (@line.SlotLabel)</text>
+                        }
+                        — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)
+                    </li>
+                }
+            </ul>
+            <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+            @if (_order.CanPay)
+            {
+                @if (_needsSquareKeys)
+                {
+                    <p class="banner">Online pay is not configured. Please pay cash or ask the host.</p>
+                }
+                else
+                {
+                    <p class="muted">You can pay on your phone after scanning the host’s QR, or from this page.</p>
+                    <button class="btn btn--solid" disabled="@_busy" @onclick="PayAsync">Pay @_order.Total.ToString("C") online</button>
+                }
+            }
+            else
+            {
+                <p class="banner banner--ok">This order is already @CatalogFormatting.StatusName(_order.Status).</p>
+            }
+        </article>
+    }
+</section>
+
+@code {
+    [Parameter] public string OrderNumber { get; set; } = string.Empty;
+    private OrderSummary? _order;
+    private bool _busy;
+    private StoreOptions Store => StoreAccessor.Value;
+    private bool _needsSquareKeys =>
+        PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
+        && !PaymentAccessor.Value.Square.IsConfigured;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _order = await Orders.GetByNumberAsync(OrderNumber, admin: true);
+    }
+
+    private async Task PayAsync()
+    {
+        if (_order is null)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(_order, Store.Currency));
+            Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+            _busy = false;
+        }
+    }
+}

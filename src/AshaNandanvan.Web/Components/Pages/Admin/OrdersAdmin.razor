@@ -9,6 +9,7 @@
     <div class="shell">
         <p class="eyebrow">Admin</p>
         <h1>Orders</h1>
+        <p class="lede">Open an order to take cash, start online pay, or show the customer a QR.</p>
     </div>
 </section>
 
@@ -18,7 +19,8 @@
             <tr>
                 <th>Order</th>
                 <th>Customer</th>
-                <th>Pickup</th>
+                <th>When</th>
+                <th>Items</th>
                 <th>Total</th>
                 <th>Status</th>
             </tr>
@@ -27,15 +29,31 @@
             @foreach (var order in _orders)
             {
                 <tr>
-                    <td>@order.OrderNumber</td>
+                    <td>
+                        <a class="text-link" href="/admin/orders/@order.OrderNumber">@order.OrderNumber</a>
+                        @if (order.CanPay)
+                        {
+                            <div class="muted">Unpaid</div>
+                        }
+                    </td>
                     <td>@order.CustomerName<br /><span class="muted">@order.CustomerEmail</span></td>
                     <td>@order.PickupDate.ToString("ddd d MMM") · @order.PickupWindow</td>
+                    <td>
+                        @foreach (var line in order.Items)
+                        {
+                            <div>@line.Quantity × @line.ProductName</div>
+                            @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                            {
+                                <div class="muted">@line.SlotLabel</div>
+                            }
+                        }
+                    </td>
                     <td>@CatalogFormatting.Money(order.Total)</td>
                     <td>
                         <select value="@order.Status" @onchange="e => ChangeStatusAsync(order, e)">
                             @foreach (var status in Enum.GetValues<OrderStatus>())
                             {
-                                <option value="@status">@status</option>
+                                <option value="@status">@CatalogFormatting.StatusName(status)</option>
                             }
                         </select>
                     </td>

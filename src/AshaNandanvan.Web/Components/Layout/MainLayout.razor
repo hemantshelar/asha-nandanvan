@@ -24,6 +24,9 @@
                 <NavLink href="/" Match="NavLinkMatch.All">Home</NavLink>
                 <NavLink href="/how-we-live">How we live</NavLink>
                 <NavLink href="/visit">Visit</NavLink>
+                <AuthorizeView>
+                    <NavLink href="/orders">My orders</NavLink>
+                </AuthorizeView>
                 <AuthorizeView Roles="@AppRoles.Admin">
                     <NavLink href="/admin/products">Admin</NavLink>
                 </AuthorizeView>
@@ -59,6 +62,9 @@
                     <NavLink href="/" Match="NavLinkMatch.All" @onclick="CloseMenu">Home</NavLink>
                     <NavLink href="/how-we-live" @onclick="CloseMenu">How we live</NavLink>
                     <NavLink href="/visit" @onclick="CloseMenu">Visit</NavLink>
+                    <AuthorizeView>
+                        <NavLink href="/orders" @onclick="CloseMenu">My orders</NavLink>
+                    </AuthorizeView>
                     <AuthorizeView Roles="@AppRoles.Admin">
                         <NavLink href="/admin/products" @onclick="CloseMenu">Admin</NavLink>
                     </AuthorizeView>

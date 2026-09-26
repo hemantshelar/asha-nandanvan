@@ -29,7 +29,7 @@ public sealed class MockPaymentProvider : IPaymentProvider
     public async Task<PaymentSessionResult> CreatePaymentAsync(PaymentRequest request, CancellationToken cancellationToken = default)
     {
         var reference = $"mock_{Guid.NewGuid():N}";
-        await _orders.MarkPaidAsync(request.OrderNumber, reference, cancellationToken);
+        await _orders.MarkPaidAsync(request.OrderNumber, reference, Name, cancellationToken);
         _logger.LogInformation("Mock payment completed for {OrderNumber}.", request.OrderNumber);
 
         var http = _httpContextAccessor.HttpContext ?? throw new InvalidOperationException("No HTTP context.");
