@@ -121,7 +121,8 @@ Google authorized redirect URIs:
 
 - Host debug: `https://localhost:7095/signin-google`
 - Docker web / debug profile: `http://localhost:8080/signin-google`
-- Azure: `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
+- Azure default: `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
+- Custom domain: `https://www.ashanandanvan.com.au/signin-google` and `https://ashanandanvan.com.au/signin-google`
 
 If you change `MSSQL_SA_PASSWORD` in `.env`, update the **https (Docker SQL)** launch profile or run `export-docker-env.ps1` so the host uses the same password.
 
@@ -138,15 +139,16 @@ Pushes to `feature/002-squre-pay` build the site, upload a web artifact, deploy 
 | Azure resource | Name |
 |---|---|
 | Resource group | `ashanandanvan-dev` |
-| App Service plan | `plan-ashanandanvan-dev` (F1 Free, Linux) |
+| App Service plan | `plan-ashanandanvan-dev` (B1 Basic, Linux) |
 | Web app | `app-ashanandanvan-dev` |
+| Custom domain | `https://www.ashanandanvan.com.au` and `https://ashanandanvan.com.au` |
 | Application Insights | `appi-ashanandanvan-dev` |
 | Log Analytics | `law-ashanandanvan-dev` |
 | SQL database | `ashanandanvan-dev` on existing server `invtation.database.windows.net` |
 
 The SQL **server** is not created. The new database stays in `invtation-web_group` because that is where the server lives.
 
-F1 cannot bind `ashanandanvan.com.au` or keep the site always on. Use `https://app-ashanandanvan-dev.azurewebsites.net` until you move to Basic (B1).
+Custom domain, Cheaper Domains DNS, and the free Azure managed certificate are documented in [docs/custom-domain/configure-ashanandanvan-com-au.md](docs/custom-domain/configure-ashanandanvan-com-au.md). F1 cannot bind a custom domain; the plan must stay on B1.
 
 ### One-time Azure + GitHub setup
 
@@ -154,6 +156,6 @@ F1 cannot bind `ashanandanvan.com.au` or keep the site always on. Use `https://a
 2. Run `infra/scripts/setup-github-oidc.ps1`
 3. In GitHub: **Settings → Environments → New environment → `dev`**
 4. Add the **environment secrets** the script prints on `dev` (Azure IDs, SQL admin group, Google, Square, admin email)
-5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google`
+5. In Google Cloud, add `https://app-ashanandanvan-dev.azurewebsites.net/signin-google` plus the custom-domain URIs in the domain guide
 
 The script creates Entra group `ashanandanvan-sql-admins-dev` (you + the GitHub app) and Bicep sets that group as the SQL Entra admin so the pipeline can grant the web app's managed identity `db_owner`.
