@@ -148,7 +148,7 @@ a:hover { color: var(--white); }
     min-height: 0;
     display: flex;
     align-items: flex-start;
-    padding: 3rem 0 4rem;
+    padding: 3rem 0 1.5rem;
     background:
         linear-gradient(180deg, rgba(7,8,7,0.15) 0%, rgba(7,8,7,0.82) 72%, #070807 100%),
         radial-gradient(circle at 80% 20%, #2c5a32 0%, transparent 42%),
@@ -221,6 +221,11 @@ h1.hero__title {
 
 .band { padding: 4rem 0; }
 .band--alt { background: var(--stage); }
+.hero + .band { padding-top: 2rem; }
+.hero + .band > .shell {
+    border-top: 1px solid rgba(182, 227, 74, 0.28);
+    padding-top: 1.75rem;
+}
 
 .section-kicker { margin-bottom: 0.4rem; }
 .section-head { justify-content: space-between; margin: 0 0 1.5rem; align-items: flex-end; }
@@ -544,6 +549,12 @@ input, select, textarea {
 }
 
 @media (min-width: 901px) {
+    .hero { padding-bottom: 2.75rem; }
+    .hero + .band { padding-top: 3.5rem; }
+    .hero + .band > .shell {
+        border-top: 0;
+        padding-top: 0;
+    }
     .hero__art img {
         width: 100%;
         max-width: 28rem;
@@ -558,6 +569,9 @@ input, select, textarea {
         grid-template-columns: 1fr;
     }
     .show-row { grid-auto-columns: 78vw; }
-    .hero { min-height: auto; padding-top: 3rem; }
+    .hero { min-height: auto; padding: 3rem 0 1.1rem; }
+    .hero__grid { gap: 1.75rem; }
+    .hero + .band { padding-top: 1.5rem; }
+    .hero + .band > .shell { padding-top: 1.4rem; }
     .topbar__inner { min-height: 68px; }
 }
