@@ -8,22 +8,29 @@
             <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" />
         </button>
         <div class="tour-album__slides">
-            @foreach (var item in VisibleItems)
+            @for (var offset = 0; offset < VisibleItems.Count; offset++)
             {
-                if (item.IsVideoPlaceholder)
-                {
-                    <div class="tour-album__slide tour-album__video" aria-label="@item.Alt">
-                        <span class="tour-album__play">Play</span>
-                        <small>Clip coming</small>
-                    </div>
-                }
-                else
-                {
-                    <div class="tour-album__slide">
+                var item = VisibleItems[offset];
+                var itemIndex = _index + offset;
+                <button type="button"
+                        class="tour-album__slide @(item.IsVideo || item.IsVideoPlaceholder ? "tour-album__slide--video" : null)"
+                        @onclick="() => OpenAt(itemIndex)">
+                    @if (item.IsVideoPlaceholder)
+                    {
+                        <span class="tour-album__video">
+                            <span class="tour-album__play">Play</span>
+                            <small>Clip coming</small>
+                        </span>
+                    }
+                    else
+                    {
                         <img src="@item.Src" alt="@item.Alt" />
-                        <span class="tour-album__tag">Photo coming</span>
-                    </div>
-                }
+                        @if (item.IsVideo)
+                        {
+                            <span class="tour-album__play">Play</span>
+                        }
+                    }
+                </button>
             }
         </div>
         <button type="button"
@@ -34,25 +41,79 @@
             <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
         </button>
     </div>
-    <figcaption>
-        @Caption
-        <span class="tour-album__count">@(_index + 1)–@LastVisible of @Items.Count</span>
-    </figcaption>
+    @if (!string.IsNullOrWhiteSpace(Caption) || Items.Count > 0)
+    {
+        <figcaption>
+            @if (!string.IsNullOrWhiteSpace(Caption))
+            {
+                @Caption
+            }
+            <span class="tour-album__count">@(_index + 1)–@LastVisible of @Items.Count</span>
+        </figcaption>
+    }
 </figure>
+
+@if (_open is not null)
+{
+    <div class="tour-lightbox" @onclick="Close" @onkeydown="OnKey">
+        <div class="tour-lightbox__panel" @onclick:stopPropagation="true">
+            <div class="tour-lightbox__head">
+                <h2>@_open.Heading</h2>
+                <button type="button" class="text-link" @onclick="Close">Close</button>
+            </div>
+            <div class="tour-lightbox__media">
+                @if (_open.IsVideo && !string.IsNullOrWhiteSpace(_open.VideoSrc))
+                {
+                    <video src="@_open.VideoSrc" controls autoplay playsinline></video>
+                }
+                else
+                {
+                    <img src="@_open.LightboxSrc" alt="@_open.Alt" />
+                }
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_open.Caption))
+            {
+                <p class="tour-lightbox__caption">@_open.Caption</p>
+            }
+            @if (Items.Count > 1)
+            {
+                <div class="tour-lightbox__tools">
+                    <button type="button" class="btn btn--ghost" disabled="@(_openIndex <= 0)" @onclick="OpenPrev">Previous</button>
+                    <span class="muted">@(_openIndex + 1) of @Items.Count</span>
+                    <button type="button" class="btn btn--ghost" disabled="@(_openIndex >= Items.Count - 1)" @onclick="OpenNext">Next</button>
+                </div>
+            }
+        </div>
+    </div>
+}
 
 @code {
     private const int Visible = 3;
     private int _index;
+    private int _openIndex = -1;
 
     [Parameter, EditorRequired] public IReadOnlyList<TourAlbumItem> Items { get; set; } = [];
-    [Parameter] public string Caption { get; set; } = "Placeholder album — we will drop in the real backyard photos and a short clip.";
+    [Parameter] public string? Caption { get; set; }
 
+    private TourAlbumItem? _open => _openIndex >= 0 && _openIndex < Items.Count ? Items[_openIndex] : null;
     private int MaxIndex => Math.Max(0, Items.Count - Visible);
     private bool AtStart => _index <= 0;
     private bool AtEnd => _index >= MaxIndex;
     private int LastVisible => Math.Min(_index + Visible, Items.Count);
-    private IEnumerable<TourAlbumItem> VisibleItems => Items.Skip(_index).Take(Visible);
+    private IReadOnlyList<TourAlbumItem> VisibleItems => Items.Skip(_index).Take(Visible).ToList();
 
     private void Prev() => _index = Math.Max(0, _index - 1);
     private void Next() => _index = Math.Min(MaxIndex, _index + 1);
+    private void OpenAt(int index) => _openIndex = index;
+    private void Close() => _openIndex = -1;
+    private void OpenPrev() => _openIndex = Math.Max(0, _openIndex - 1);
+    private void OpenNext() => _openIndex = Math.Min(Items.Count - 1, _openIndex + 1);
+
+    private void OnKey(KeyboardEventArgs e)
+    {
+        if (e.Key == "Escape")
+        {
+            Close();
+        }
+    }
 }

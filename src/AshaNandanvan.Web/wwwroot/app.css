@@ -646,7 +646,8 @@ input, select, textarea {
     margin: 0.2rem 0 0.85rem;
     color: var(--white);
 }
-.tour-stop__copy p { color: var(--muted); line-height: 1.7; margin: 0; }
+.tour-stop__copy p { color: var(--muted); line-height: 1.7; margin: 0 0 0.85rem; }
+.tour-stop__copy p:last-child { margin-bottom: 0; }
 .tour-album { margin: 0; }
 .tour-album__row {
     display: grid;
@@ -666,8 +667,19 @@ input, select, textarea {
     overflow: hidden;
     background: #1a2218;
     aspect-ratio: 1;
+    padding: 0;
+    border: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    width: 100%;
 }
 .tour-album__slide img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tour-album__slide .tour-album__play {
+    position: absolute;
+    left: 0.5rem;
+    bottom: 0.5rem;
+}
 .tour-album__nav {
     width: 2.4rem;
     height: 2.4rem;
@@ -702,9 +714,67 @@ input, select, textarea {
     align-items: center;
     justify-content: center;
     gap: 0.35rem;
+    width: 100%;
+    height: 100%;
     border: 1px dashed rgba(182, 227, 74, 0.45);
     color: var(--muted);
     text-align: center;
+    box-sizing: border-box;
+}
+.tour-lightbox {
+    position: fixed;
+    inset: 0;
+    z-index: 45;
+    background: rgba(7, 8, 7, 0.88);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.25rem;
+}
+.tour-lightbox__panel {
+    width: min(52rem, 100%);
+    background: var(--panel);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 18px;
+    padding: 1rem 1.1rem 1.15rem;
+    box-shadow: var(--shadow);
+}
+.tour-lightbox__head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+.tour-lightbox__head h2 { margin: 0; font-size: 1.45rem; }
+.tour-lightbox__media {
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 12rem;
+}
+.tour-lightbox__media img,
+.tour-lightbox__media video {
+    display: block;
+    width: 100%;
+    max-height: min(68vh, 36rem);
+    object-fit: contain;
+    background: #000;
+}
+.tour-lightbox__caption {
+    color: var(--muted);
+    line-height: 1.6;
+    margin: 0.85rem 0 0;
+}
+.tour-lightbox__tools {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-top: 1rem;
 }
 .tour-album__count { display: block; margin-top: 0.2rem; }
 .tour-album__play {

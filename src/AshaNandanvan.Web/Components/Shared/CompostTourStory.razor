@@ -7,9 +7,12 @@
             <div class="tour-stop__copy">
                 <p class="eyebrow">@stop.Eyebrow</p>
                 <h2>@stop.Title</h2>
-                <p>@stop.Body</p>
+                @foreach (var paragraph in stop.Paragraphs)
+                {
+                    <p>@paragraph</p>
+                }
             </div>
-            <TourAlbum Items="stop.Album" />
+            <TourAlbum Items="stop.Album" Caption="@stop.AlbumCaption" />
         </article>
     }
 </section>
