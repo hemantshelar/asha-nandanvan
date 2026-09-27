@@ -1,0 +1,380 @@
+@page "/albums/{Id:int}"
+@attribute [Authorize]
+@inject IStayAlbumService Albums
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+@inject ISnackbar Snackbar
+
+<PageTitle>@(_album?.Title ?? "Album") — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Stay album</p>
+        @if (_album is not null && _album.CanRename)
+        {
+            <form class="album-title-form" @onsubmit="RenameAsync" @onsubmit:preventDefault>
+                <input class="album-title-input" @bind="_title" maxlength="160" aria-label="Album name" />
+                <button class="btn btn--ghost" type="submit" disabled="@_busy">Save name</button>
+            </form>
+        }
+        else
+        {
+            <h1>@(_album?.Title ?? "Album")</h1>
+        }
+        @if (_album is not null)
+        {
+            <p class="lede">@_album.PetName · @_album.StayLabel</p>
+            <p class="muted">
+                @_album.Clips.Sum(c => c.HeartCount) heart@(_album.Clips.Sum(c => c.HeartCount) == 1 ? "" : "s")
+                · Order @_album.OrderNumber
+            </p>
+        }
+        <p><a class="text-link" href="/albums">All albums</a></p>
+    </div>
+</section>
+
+<section class="shell">
+    @if (!string.IsNullOrWhiteSpace(_error) && _album is null)
+    {
+        <p>@_error</p>
+    }
+    else if (_album is not null)
+    {
+        @if (_album.CanShare)
+        {
+            <article class="panel album-share">
+                <h2>Invite family</h2>
+                <p class="muted">They sign in with Google or Facebook, then land on this album. The link is private — do not post it publicly.</p>
+                <p class="album-share__link">@_inviteUrl</p>
+                <div class="album-share__actions">
+                    <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="CopyInviteAsync">Copy invite link</button>
+                    <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RotateInviteAsync">Replace link</button>
+                </div>
+            </article>
+        }
+
+        @if (_album.CanManage)
+        {
+            <form class="admin-form panel media-form" @onsubmit="AddClipAsync" @onsubmit:preventDefault>
+                <h2>Add a clip</h2>
+                <p class="muted">Paste an unlisted YouTube link so it is not on your public channel browse.</p>
+                <label>
+                    YouTube link
+                    <input @bind="_clip.SourceUrl" placeholder="https://youtu.be/your-video" required />
+                </label>
+                <label>
+                    Title
+                    <input @bind="_clip.Title" placeholder="Optional — we can use the dog's name" />
+                </label>
+                <label>
+                    Asha’s note
+                    <input @bind="_clip.Caption" maxlength="400" placeholder="One line from the stay" />
+                </label>
+                <label>
+                    Filmed on
+                    <input type="date" @bind="_clip.FilmedOn" />
+                </label>
+                <button class="btn btn--solid" type="submit" disabled="@_busy">Add clip</button>
+            </form>
+        }
+
+        @if (_album.Clips.Count == 0)
+        {
+            <p class="muted">
+                @if (_album.CanManage)
+                {
+                    <text>No clips yet. Add an unlisted YouTube link above.</text>
+                }
+                else
+                {
+                    <text>Asha will add clips once the stay is underway.</text>
+                }
+            </p>
+        }
+        else
+        {
+            <div class="media-grid album-grid">
+                @foreach (var clip in _album.Clips)
+                {
+                    <article class="media-card">
+                        <button type="button" class="media-card__hit" @onclick="() => Play(clip)">
+                            <span class="media-card__still">
+                                <img src="@clip.ThumbnailUrl" alt="" />
+                                <span class="media-card__play">Play</span>
+                                @if (clip.IsNew)
+                                {
+                                    <span class="album-badge">New</span>
+                                }
+                            </span>
+                            <strong>@clip.Title</strong>
+                        </button>
+                        <span class="muted">@clip.HeartCount heart@(clip.HeartCount == 1 ? "" : "s") · @clip.Comments.Count comment@(clip.Comments.Count == 1 ? "" : "s")</span>
+                        @if (_album.CanManage)
+                        {
+                            <div class="media-card__admin">
+                                <button type="button" class="text-link" @onclick="() => DeleteClipAsync(clip)">Delete</button>
+                            </div>
+                        }
+                    </article>
+                }
+            </div>
+        }
+
+        <article class="panel album-people">
+            <h2>Who can watch</h2>
+            <ul class="album-people__list">
+                @foreach (var member in _album.Members)
+                {
+                    <li>
+                        <div>
+                            <strong>@member.Name</strong>
+                            <span class="muted"> · @(member.Role == StayAlbumMemberRole.Owner ? "Owner" : "Guest") · joined @Sydney(member.JoinedAt)</span>
+                            @if (!string.IsNullOrWhiteSpace(member.Email))
+                            {
+                                <div class="muted">@member.Email</div>
+                            }
+                        </div>
+                        @if (_album.CanShare && member.Role == StayAlbumMemberRole.Guest)
+                        {
+                            <button type="button" class="text-link" disabled="@_busy" @onclick="() => RemoveGuestAsync(member)">Remove</button>
+                        }
+                    </li>
+                }
+            </ul>
+        </article>
+    }
+</section>
+
+@if (_playing is not null && _album is not null)
+{
+    <div class="album-sheet" @onclick="Close">
+        <div class="album-sheet__panel" @onclick:stopPropagation="true">
+            <div class="order-sheet__grab" aria-hidden="true"></div>
+            <div class="media-modal__head">
+                <h2>@_playing.Title</h2>
+                <button type="button" class="text-link" @onclick="Close">Close</button>
+            </div>
+            <div class="media-modal__frame">
+                <iframe src="@_playing.EmbedUrl"
+                        title="@_playing.Title"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowfullscreen></iframe>
+            </div>
+            @if (!string.IsNullOrWhiteSpace(_playing.Caption) || _playing.FilmedOn is not null)
+            {
+                <p class="album-note">
+                    @if (_playing.FilmedOn is DateOnly filmed)
+                    {
+                        <span class="muted">@filmed.ToString("d MMM yyyy")</span>
+                    }
+                    @if (!string.IsNullOrWhiteSpace(_playing.Caption))
+                    {
+                        <span>@_playing.Caption</span>
+                    }
+                </p>
+            }
+            <div class="album-heart">
+                <button class="btn @(_playing.YouHearted ? "btn--solid" : "btn--ghost")" type="button" disabled="@_busy" @onclick="HeartAsync">
+                    @(_playing.YouHearted ? "Loved" : "Heart") · @_playing.HeartCount
+                </button>
+            </div>
+            <div class="album-thread">
+                @if (_playing.Comments.Count == 0)
+                {
+                    <p class="muted">No comments yet.</p>
+                }
+                @foreach (var comment in _playing.Comments)
+                {
+                    <article class="album-comment">
+                        <div class="album-comment__head">
+                            <strong>@comment.Author</strong>
+                            <span class="muted">@SydneyTime(comment.CreatedAt)</span>
+                            @if (_album.CanManage)
+                            {
+                                <button type="button" class="text-link" disabled="@_busy" @onclick="() => DeleteCommentAsync(comment)">Delete</button>
+                            }
+                        </div>
+                        <p>@comment.Body</p>
+                    </article>
+                }
+            </div>
+            <form class="album-comment-form" @onsubmit="AddCommentAsync" @onsubmit:preventDefault>
+                <label>
+                    Comment
+                    <textarea @bind="_comment" maxlength="1000" rows="3" placeholder="A note for Asha or the family"></textarea>
+                </label>
+                <button class="btn btn--solid" type="submit" disabled="@_busy">Post</button>
+            </form>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private StayAlbumDetail? _album;
+    private StayAlbumClipView? _playing;
+    private StayAlbumClipEdit _clip = new();
+    private string _title = string.Empty;
+    private string _comment = string.Empty;
+    private string _inviteUrl = string.Empty;
+    private string? _error;
+    private string _userId = string.Empty;
+    private bool _isAdmin;
+    private bool _busy;
+    private int _loadedId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        _userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new InvalidOperationException("Please sign in again.");
+        _isAdmin = state.User.IsInRole(AppRoles.Admin);
+        if (_loadedId == Id && _album is not null)
+        {
+            return;
+        }
+
+        await ReloadAsync();
+        _loadedId = Id;
+    }
+
+    private async Task ReloadAsync(int? keepClipId = null)
+    {
+        try
+        {
+            var playingId = keepClipId ?? _playing?.Id;
+            _album = await Albums.GetAsync(Id, _userId, _isAdmin);
+            _title = _album.Title;
+            _inviteUrl = Navigation.ToAbsoluteUri(_album.InvitePath).ToString();
+            _error = null;
+            _playing = playingId is int id ? _album.Clips.FirstOrDefault(c => c.Id == id) : null;
+        }
+        catch (Exception ex)
+        {
+            _album = null;
+            _playing = null;
+            _error = ex.Message;
+        }
+    }
+
+    private static string Sydney(DateTimeOffset at) =>
+        at.ToOffset(BookingPricing.SydneyOffset(at)).ToString("d MMM");
+
+    private static string SydneyTime(DateTimeOffset at) =>
+        at.ToOffset(BookingPricing.SydneyOffset(at)).ToString("d MMM h:mmtt");
+
+    private void Play(StayAlbumClipView clip) => _playing = clip;
+
+    private void Close() => _playing = null;
+
+    private async Task RenameAsync()
+    {
+        await RunAsync(() => Albums.RenameAsync(Id, _userId, _isAdmin, _title), "Album renamed.");
+    }
+
+    private async Task AddClipAsync()
+    {
+        await RunAsync(() => Albums.AddClipAsync(Id, _userId, _isAdmin, _clip), "Clip added.");
+        _clip = new StayAlbumClipEdit();
+    }
+
+    private async Task DeleteClipAsync(StayAlbumClipView clip)
+    {
+        if (_playing?.Id == clip.Id)
+        {
+            _playing = null;
+        }
+
+        await RunAsync(() => Albums.DeleteClipAsync(Id, clip.Id, _userId, _isAdmin), "Clip deleted.");
+    }
+
+    private async Task AddCommentAsync()
+    {
+        if (_playing is null)
+        {
+            return;
+        }
+
+        var clipId = _playing.Id;
+        await RunAsync(() => Albums.AddCommentAsync(Id, clipId, _userId, _isAdmin, _comment), "Comment posted.", clipId);
+        _comment = string.Empty;
+    }
+
+    private async Task DeleteCommentAsync(StayAlbumCommentView comment)
+    {
+        await RunAsync(() => Albums.DeleteCommentAsync(Id, comment.Id, _userId, _isAdmin), "Comment deleted.", _playing?.Id);
+    }
+
+    private async Task HeartAsync()
+    {
+        if (_playing is null)
+        {
+            return;
+        }
+
+        await RunAsync(() => Albums.ToggleHeartAsync(Id, _playing.Id, _userId, _isAdmin), null, _playing.Id);
+    }
+
+    private async Task CopyInviteAsync()
+    {
+        try
+        {
+            await Js.InvokeVoidAsync("ashaCopy", _inviteUrl);
+            Snackbar.Add("Invite link copied.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add(_inviteUrl, Severity.Info);
+        }
+    }
+
+    private async Task RotateInviteAsync()
+    {
+        _busy = true;
+        try
+        {
+            var path = await Albums.RotateInviteAsync(Id, _userId, _isAdmin);
+            _inviteUrl = Navigation.ToAbsoluteUri(path).ToString();
+            Snackbar.Add("The old invite link no longer works.", Severity.Success);
+            await ReloadAsync(_playing?.Id);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private async Task RemoveGuestAsync(StayAlbumMemberView member)
+    {
+        await RunAsync(() => Albums.RemoveGuestAsync(Id, member.UserId, _userId, _isAdmin), $"{member.Name} can no longer open this album.", _playing?.Id);
+    }
+
+    private async Task RunAsync(Func<Task> action, string? ok, int? keepClipId = null)
+    {
+        _busy = true;
+        try
+        {
+            await action();
+            if (!string.IsNullOrWhiteSpace(ok))
+            {
+                Snackbar.Add(ok, Severity.Success);
+            }
+
+            await ReloadAsync(keepClipId);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+}

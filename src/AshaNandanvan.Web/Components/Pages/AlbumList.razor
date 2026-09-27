@@ -1,0 +1,76 @@
+@page "/albums"
+@attribute [Authorize]
+@inject IStayAlbumService Albums
+@inject AuthenticationStateProvider Auth
+
+<PageTitle>@(_isAdmin ? "Albums" : "My albums") — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">@(_isAdmin ? "Admin" : "Your account")</p>
+        <h1>@(_isAdmin ? "Albums" : "My albums")</h1>
+        <p class="lede">
+            Private stay clips for a dog sitting visit. These never appear on the public media page.
+        </p>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_albums.Count == 0)
+    {
+        <p class="muted">
+            @if (_isAdmin)
+            {
+                <text>No stay albums yet. Approve a dog-sitting order and one will appear here.</text>
+            }
+            else
+            {
+                <text>You do not have a stay album yet. After we approve a sit, it will show up here.</text>
+            }
+        </p>
+    }
+    else
+    {
+        <div class="album-grid">
+            @foreach (var album in _albums)
+            {
+                <a class="album-tile" href="/albums/@album.Id">
+                    <span class="media-card__still">
+                        @if (album.CoverThumbnailUrl is string cover)
+                        {
+                            <img src="@cover" alt="" />
+                        }
+                        @if (album.NewClipCount > 0)
+                        {
+                            <span class="album-badge">@album.NewClipCount new</span>
+                        }
+                    </span>
+                    <span class="eyebrow">@album.PetName</span>
+                    <strong>@album.Title</strong>
+                    <span class="muted">@album.StayLabel</span>
+                    <span class="muted">
+                        @album.ClipCount clip@(album.ClipCount == 1 ? "" : "s")
+                        @if (album.Role is StayAlbumMemberRole.Guest)
+                        {
+                            <text> · Shared with you</text>
+                        }
+                    </span>
+                </a>
+            }
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<StayAlbumListItem> _albums = [];
+    private bool _isAdmin;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+            ?? throw new InvalidOperationException("Please sign in again.");
+        _isAdmin = state.User.IsInRole(AppRoles.Admin);
+        _albums = await Albums.ListMineAsync(userId, _isAdmin);
+    }
+}

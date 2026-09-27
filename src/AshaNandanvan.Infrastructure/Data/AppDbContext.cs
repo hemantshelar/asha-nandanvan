@@ -20,6 +20,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<DogSittingSettings> DogSittingSettings => Set<DogSittingSettings>();
     public DbSet<MediaItem> MediaItems => Set<MediaItem>();
     public DbSet<DogBreed> DogBreeds => Set<DogBreed>();
+    public DbSet<StayAlbum> StayAlbums => Set<StayAlbum>();
+    public DbSet<StayAlbumClip> StayAlbumClips => Set<StayAlbumClip>();
+    public DbSet<StayAlbumComment> StayAlbumComments => Set<StayAlbumComment>();
+    public DbSet<StayAlbumMember> StayAlbumMembers => Set<StayAlbumMember>();
+    public DbSet<StayAlbumReaction> StayAlbumReactions => Set<StayAlbumReaction>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -124,6 +129,63 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(b => b.OffersSitting).IsRequired();
             entity.HasIndex(b => b.Name).IsUnique();
             entity.HasIndex(b => new { b.IsApproved, b.IsRejected, b.Name });
+        });
+
+        builder.Entity<StayAlbum>(entity =>
+        {
+            entity.Property(a => a.Title).HasMaxLength(160).IsRequired();
+            entity.Property(a => a.InviteToken).HasMaxLength(64).IsRequired();
+            entity.HasIndex(a => a.OrderId).IsUnique();
+            entity.HasIndex(a => a.InviteToken).IsUnique();
+            entity.HasOne(a => a.Order)
+                .WithOne(o => o.Album)
+                .HasForeignKey<StayAlbum>(a => a.OrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(a => a.Clips)
+                .WithOne(c => c.Album)
+                .HasForeignKey(c => c.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(a => a.Members)
+                .WithOne(m => m.Album)
+                .HasForeignKey(m => m.AlbumId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<StayAlbumClip>(entity =>
+        {
+            entity.Property(c => c.Title).HasMaxLength(160).IsRequired();
+            entity.Property(c => c.SourceUrl).HasMaxLength(500).IsRequired();
+            entity.Property(c => c.YouTubeVideoId).HasMaxLength(20).IsRequired();
+            entity.Property(c => c.Caption).HasMaxLength(400);
+            entity.HasIndex(c => new { c.AlbumId, c.SortOrder });
+            entity.HasIndex(c => new { c.AlbumId, c.YouTubeVideoId }).IsUnique();
+            entity.HasMany(c => c.Comments)
+                .WithOne(m => m.Clip)
+                .HasForeignKey(m => m.ClipId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(c => c.Reactions)
+                .WithOne(r => r.Clip)
+                .HasForeignKey(r => r.ClipId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<StayAlbumComment>(entity =>
+        {
+            entity.Property(c => c.UserId).HasMaxLength(450).IsRequired();
+            entity.Property(c => c.Body).HasMaxLength(1000).IsRequired();
+            entity.HasIndex(c => new { c.ClipId, c.CreatedAt });
+        });
+
+        builder.Entity<StayAlbumMember>(entity =>
+        {
+            entity.Property(m => m.UserId).HasMaxLength(450).IsRequired();
+            entity.HasIndex(m => new { m.AlbumId, m.UserId }).IsUnique();
+        });
+
+        builder.Entity<StayAlbumReaction>(entity =>
+        {
+            entity.Property(r => r.UserId).HasMaxLength(450).IsRequired();
+            entity.HasIndex(r => new { r.ClipId, r.UserId }).IsUnique();
         });
     }
 }

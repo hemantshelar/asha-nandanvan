@@ -28,6 +28,9 @@
         window.ashaScrollTo = function (id) {
             document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
         };
+        window.ashaCopy = function (text) {
+            return navigator.clipboard.writeText(text);
+        };
     </script>
 </body>
 

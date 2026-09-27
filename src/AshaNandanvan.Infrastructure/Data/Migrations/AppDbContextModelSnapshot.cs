@@ -364,6 +364,187 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.ToTable("OrderItems");
                 });
 
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbum", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("InviteToken")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<int>("OrderId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<bool>("TitleIsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset>("UpdatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("InviteToken")
+                        .IsUnique();
+
+                    b.HasIndex("OrderId")
+                        .IsUnique();
+
+                    b.ToTable("StayAlbums");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumClip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AlbumId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Caption")
+                        .HasMaxLength(400)
+                        .HasColumnType("nvarchar(400)");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateOnly?>("FilmedOn")
+                        .HasColumnType("date");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<string>("YouTubeVideoId")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("nvarchar(20)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlbumId", "SortOrder");
+
+                    b.HasIndex("AlbumId", "YouTubeVideoId")
+                        .IsUnique();
+
+                    b.ToTable("StayAlbumClips");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumComment", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("ClipId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipId", "CreatedAt");
+
+                    b.ToTable("StayAlbumComments");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumMember", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AlbumId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("JoinedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<DateTimeOffset>("LastSeenAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AlbumId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("StayAlbumMembers");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumReaction", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("ClipId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("UserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClipId", "UserId")
+                        .IsUnique();
+
+                    b.ToTable("StayAlbumReactions");
+                });
+
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.Product", b =>
                 {
                     b.Property<int>("Id")
@@ -711,6 +892,61 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Navigation("ProductSlot");
                 });
 
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbum", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.Order", "Order")
+                        .WithOne("Album")
+                        .HasForeignKey("AshaNandanvan.Domain.Entities.StayAlbum", "OrderId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Order");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumClip", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.StayAlbum", "Album")
+                        .WithMany("Clips")
+                        .HasForeignKey("AlbumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Album");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumComment", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.StayAlbumClip", "Clip")
+                        .WithMany("Comments")
+                        .HasForeignKey("ClipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Clip");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumMember", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.StayAlbum", "Album")
+                        .WithMany("Members")
+                        .HasForeignKey("AlbumId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Album");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumReaction", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.StayAlbumClip", "Clip")
+                        .WithMany("Reactions")
+                        .HasForeignKey("ClipId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Clip");
+                });
+
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.ProductSlot", b =>
                 {
                     b.HasOne("AshaNandanvan.Domain.Entities.Product", "Product")
@@ -780,7 +1016,23 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.Order", b =>
                 {
+                    b.Navigation("Album");
+
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbum", b =>
+                {
+                    b.Navigation("Clips");
+
+                    b.Navigation("Members");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbumClip", b =>
+                {
+                    b.Navigation("Comments");
+
+                    b.Navigation("Reactions");
                 });
 
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.Product", b =>

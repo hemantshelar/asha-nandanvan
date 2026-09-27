@@ -24,8 +24,10 @@ public sealed record OrderSummary(
     DateTimeOffset CreatedAt,
     IReadOnlyList<OrderLineSummary> Items,
     string? PaymentReference = null,
-    string PaymentProvider = "")
+    string PaymentProvider = "",
+    int? AlbumId = null)
 {
+    public bool IsDogStay => Items.Any(i => i.StayEndsAt is not null || i.IsTrialStay);
     public bool CanPay =>
         Status.IsApproved()
         && Total > 0

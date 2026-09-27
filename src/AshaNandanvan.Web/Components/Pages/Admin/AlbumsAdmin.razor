@@ -1,0 +1,9 @@
+@page "/admin/albums"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject NavigationManager Navigation
+
+<PageTitle>Albums — Admin</PageTitle>
+
+@code {
+    protected override void OnInitialized() => Navigation.NavigateTo("/albums");
+}

@@ -1,3 +1,4 @@
+using AshaNandanvan.Application.Albums;
 using AshaNandanvan.Application.DogSitting;
 using AshaNandanvan.Application.Offers;
 using AshaNandanvan.Application.Orders;
@@ -13,12 +14,18 @@ public sealed class OrderService : IOrderService
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IDogSittingService _dogSitting;
     private readonly IDogBreedService _breeds;
+    private readonly IStayAlbumService _albums;
 
-    public OrderService(IDbContextFactory<AppDbContext> dbFactory, IDogSittingService dogSitting, IDogBreedService breeds)
+    public OrderService(
+        IDbContextFactory<AppDbContext> dbFactory,
+        IDogSittingService dogSitting,
+        IDogBreedService breeds,
+        IStayAlbumService albums)
     {
         _dbFactory = dbFactory;
         _dogSitting = dogSitting;
         _breeds = breeds;
+        _albums = albums;
     }
 
     public async Task<OrderSummary> CreateOrderAsync(string userId, CheckoutRequest request, bool payNow, CancellationToken cancellationToken = default)
@@ -138,6 +145,7 @@ public sealed class OrderService : IOrderService
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var orders = await db.Orders.AsNoTracking()
             .Include(o => o.Items)
+            .Include(o => o.Album)
             .Where(o => o.UserId == userId)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
@@ -148,7 +156,7 @@ public sealed class OrderService : IOrderService
     public async Task<OrderSummary?> GetByNumberAsync(string orderNumber, string? userId = null, bool admin = false, CancellationToken cancellationToken = default)
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
-        var query = db.Orders.AsNoTracking().Include(o => o.Items).Where(o => o.OrderNumber == orderNumber);
+        var query = db.Orders.AsNoTracking().Include(o => o.Items).Include(o => o.Album).Where(o => o.OrderNumber == orderNumber);
         if (!admin && userId is not null)
         {
             query = query.Where(o => o.UserId == userId);
@@ -163,6 +171,7 @@ public sealed class OrderService : IOrderService
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var orders = await db.Orders.AsNoTracking()
             .Include(o => o.Items)
+            .Include(o => o.Album)
             .OrderByDescending(o => o.CreatedAt)
             .ToListAsync(cancellationToken);
 
@@ -193,6 +202,7 @@ public sealed class OrderService : IOrderService
         order.Status = OrderStatus.Confirmed;
         order.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        await _albums.EnsureForOrderAsync(order.Id, cancellationToken);
     }
 
     public async Task RejectAsync(int orderId, CancellationToken cancellationToken = default)
@@ -276,6 +286,8 @@ public sealed class OrderService : IOrderService
         order.Status = OrderStatus.Confirmed;
         order.UpdatedAt = DateTimeOffset.UtcNow;
         await db.SaveChangesAsync(cancellationToken);
+        await _albums.EnsureForOrderAsync(order.Id, cancellationToken);
+        await _albums.RefreshDefaultTitleAsync(order.Id, cancellationToken);
     }
 
     public async Task MarkPaidAsync(string orderNumber, string paymentReference, string? provider = null, CancellationToken cancellationToken = default)
@@ -292,6 +304,7 @@ public sealed class OrderService : IOrderService
 
         await MarkPaidCoreAsync(db, order, paymentReference, provider, cancellationToken);
         await db.SaveChangesAsync(cancellationToken);
+        await _albums.EnsureForOrderAsync(order.Id, cancellationToken);
     }
 
     public async Task AttachPaymentSessionAsync(string orderNumber, string provider, string? reference, CancellationToken cancellationToken = default)
@@ -415,5 +428,6 @@ public sealed class OrderService : IOrderService
                 i.IntendedStayStartsAt,
                 i.IntendedStayEndsAt)).ToList(),
             order.PaymentReference,
-            order.PaymentProvider);
+            order.PaymentProvider,
+            order.Album?.Id);
 }

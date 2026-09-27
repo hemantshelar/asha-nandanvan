@@ -67,6 +67,10 @@
                 }
             </ul>
             <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
+            @if (_order.AlbumId is int albumId)
+            {
+                <p><a class="btn btn--ghost" href="/albums/@albumId">Open stay album</a></p>
+            }
             @if (_order.CanPay)
             {
                 <div class="pay-qr-block">

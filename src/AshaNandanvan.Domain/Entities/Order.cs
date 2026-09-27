@@ -19,4 +19,5 @@ public class Order
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
+    public StayAlbum? Album { get; set; }
 }

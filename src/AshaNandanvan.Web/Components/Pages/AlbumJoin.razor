@@ -1,0 +1,43 @@
+@page "/albums/join/{Token}"
+@attribute [Authorize]
+@inject IStayAlbumService Albums
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Join album — Asha Nandanvan</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Stay album</p>
+        <h1>Opening album</h1>
+        <p class="lede">@(_error ?? "Signing you into this private stay album.")</p>
+        @if (!string.IsNullOrWhiteSpace(_error))
+        {
+            <p><a class="text-link" href="/albums">Back to my albums</a></p>
+        }
+    </div>
+</section>
+
+@code {
+    [Parameter] public string Token { get; set; } = string.Empty;
+
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var state = await Auth.GetAuthenticationStateAsync();
+            var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value
+                ?? throw new InvalidOperationException("Please sign in again.");
+            var albumId = await Albums.JoinAsync(Token, userId);
+            Navigation.NavigateTo($"/albums/{albumId}", replace: true);
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+}
