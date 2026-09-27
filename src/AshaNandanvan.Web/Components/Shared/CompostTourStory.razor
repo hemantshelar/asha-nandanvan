@@ -1,0 +1,15 @@
+<section class="tour-story" id="tour-walk" aria-label="What we do on the tour">
+    @for (var i = 0; i < CompostTourCopy.Stops.Count; i++)
+    {
+        var stop = CompostTourCopy.Stops[i];
+        var flip = i % 2 == 1;
+        <article class="tour-stop @(flip ? "tour-stop--flip" : null)">
+            <div class="tour-stop__copy">
+                <p class="eyebrow">@stop.Eyebrow</p>
+                <h2>@stop.Title</h2>
+                <p>@stop.Body</p>
+            </div>
+            <TourAlbum Items="stop.Album" />
+        </article>
+    }
+</section>

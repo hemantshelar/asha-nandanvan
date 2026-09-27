@@ -2,6 +2,7 @@
 @inject IProductService Products
 @inject IMediaService MediaItems
 @inject NavigationManager Navigation
+@inject IJSRuntime Js
 
 <PageTitle>@(_offer?.Title ?? "Offer") — Asha Nandanvan</PageTitle>
 
@@ -14,15 +15,28 @@
 }
 else
 {
-    <section class="page-hero">
+    <section class="page-hero @(_offer.Slug == OfferCatalog.CompostTours.Slug ? "page-hero--tour" : null)">
         <div class="shell">
-            <p class="eyebrow">@_offer.Eyebrow</p>
-            <h1>@_offer.Title</h1>
-            <p class="lede">@_offer.Description</p>
+            <div class="page-hero__intro">
+                <p class="eyebrow">@_offer.Eyebrow</p>
+                <h1>@_offer.Title</h1>
+                <hr class="page-hero__rule" />
+                <p class="lede">@_offer.Description</p>
+                @if (_offer.Slug == OfferCatalog.CompostTours.Slug)
+                {
+                    <div class="page-hero__actions">
+                        <button type="button" class="btn btn--solid" @onclick="ScrollToBookAsync">Book a date</button>
+                    </div>
+                }
+            </div>
         </div>
     </section>
 
     <section class="shell">
+        @if (_offer.Slug == OfferCatalog.CompostTours.Slug)
+        {
+            <CompostTourStory />
+        }
         @if (_products.Count == 0)
         {
             <p class="muted">Nothing in this offer this week. Please check back soon.</p>
@@ -32,6 +46,30 @@ else
             <div class="stay-offer">
                 <DogStayWelcome />
                 <ProductCard Product="_products[0]" />
+            </div>
+        }
+        else if (_offer.Slug == OfferCatalog.CompostTours.Slug)
+        {
+            <div class="tour-book" id="book-tour">
+                <p class="eyebrow">Join a session</p>
+                <h2>Book a date</h2>
+                <p class="lede">Pick a session and how many guests. We meet you at the gate and walk the three stops together.</p>
+                @foreach (var product in _products)
+                {
+                    <article class="tour-book__panel">
+                        <img class="tour-book__photo" src="@product.ImagePath" alt="@product.Name" />
+                        <div class="tour-book__detail">
+                            <p class="eyebrow">@CatalogFormatting.CategoryName(product.Category)</p>
+                            <h3>@product.Name</h3>
+                            <p>@product.Description</p>
+                            <p class="tour-book__price">
+                                @CatalogFormatting.Money(product.Price)
+                                <span>/ @product.Unit</span>
+                            </p>
+                            <a class="btn btn--solid" href="/shop/@product.Slug">Choose a date</a>
+                        </div>
+                    </article>
+                }
             </div>
         }
         else if (_offer.RequiresBooking && _products.Count == 1)
@@ -86,4 +124,7 @@ else
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
         _clips = await MediaItems.ListAsync(_offer.Slug);
     }
+
+    private async Task ScrollToBookAsync() =>
+        await Js.InvokeVoidAsync("ashaScrollTo", "book-tour");
 }

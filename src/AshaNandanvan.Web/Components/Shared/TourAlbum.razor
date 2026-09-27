@@ -1,0 +1,58 @@
+<figure class="tour-album">
+    <div class="tour-album__row">
+        <button type="button"
+                class="tour-album__nav"
+                aria-label="Previous photos"
+                disabled="@AtStart"
+                @onclick="Prev">
+            <MudIcon Icon="@Icons.Material.Filled.ChevronLeft" />
+        </button>
+        <div class="tour-album__slides">
+            @foreach (var item in VisibleItems)
+            {
+                if (item.IsVideoPlaceholder)
+                {
+                    <div class="tour-album__slide tour-album__video" aria-label="@item.Alt">
+                        <span class="tour-album__play">Play</span>
+                        <small>Clip coming</small>
+                    </div>
+                }
+                else
+                {
+                    <div class="tour-album__slide">
+                        <img src="@item.Src" alt="@item.Alt" />
+                        <span class="tour-album__tag">Photo coming</span>
+                    </div>
+                }
+            }
+        </div>
+        <button type="button"
+                class="tour-album__nav"
+                aria-label="Next photos"
+                disabled="@AtEnd"
+                @onclick="Next">
+            <MudIcon Icon="@Icons.Material.Filled.ChevronRight" />
+        </button>
+    </div>
+    <figcaption>
+        @Caption
+        <span class="tour-album__count">@(_index + 1)–@LastVisible of @Items.Count</span>
+    </figcaption>
+</figure>
+
+@code {
+    private const int Visible = 3;
+    private int _index;
+
+    [Parameter, EditorRequired] public IReadOnlyList<TourAlbumItem> Items { get; set; } = [];
+    [Parameter] public string Caption { get; set; } = "Placeholder album — we will drop in the real backyard photos and a short clip.";
+
+    private int MaxIndex => Math.Max(0, Items.Count - Visible);
+    private bool AtStart => _index <= 0;
+    private bool AtEnd => _index >= MaxIndex;
+    private int LastVisible => Math.Min(_index + Visible, Items.Count);
+    private IEnumerable<TourAlbumItem> VisibleItems => Items.Skip(_index).Take(Visible);
+
+    private void Prev() => _index = Math.Max(0, _index - 1);
+    private void Next() => _index = Math.Min(MaxIndex, _index + 1);
+}

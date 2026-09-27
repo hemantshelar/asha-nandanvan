@@ -42,7 +42,7 @@ public static class OfferCatalog
         "Composting education tours",
         "Learn",
         "Walk the loop: scraps, worms, castings, and the beds they feed.",
-        "A small-group visit through the composting system we actually run. Choose a session, pay for your guests, and we will see you at the gate.",
+        "Walk the loop we run every week — worm bins, chicken coop, then the mealworm trays — while they are working. Ninety minutes, a small group, shoes you do not mind getting dusty.",
         "/images/compost-tour.jpg",
         [ProductCategory.CompostTour],
         true);

@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="Worm farm — bins">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1c3d24"/>
+      <stop offset="1" stop-color="#0c120c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#g)"/>
+  <rect x="36" y="36" width="1128" height="828" fill="none" stroke="#b6e34a" stroke-width="3" stroke-dasharray="14 12" opacity="0.55" rx="28"/>
+  <text x="600" y="410" text-anchor="middle" fill="#b6e34a" font-family="Oswald, Impact, sans-serif" font-size="42" letter-spacing="4">PHOTO COMING</text>
+  <text x="600" y="470" text-anchor="middle" fill="#f4f6f1" font-family="Manrope, Segoe UI, sans-serif" font-size="28">Worm farm — bins</text>
+</svg>
