@@ -50,10 +50,10 @@ public static class OfferCatalog
     public static readonly OfferDefinition WormsAndGold = new(
         "worms-and-black-gold",
         "Worms & black gold",
-        "Soil",
-        "Take a starter colony or a bag of finished worm castings home.",
-        "Live compost worms and the black gold they make. Same loop as the garden — you just continue it in your own backyard.",
-        "/images/worms.svg",
+        "Take home",
+        "Mealworms, frass, and bags of black gold — made in this backyard.",
+        "Live mealworms for the hens, the fine frass they leave behind, and black gold from the worm farm. Same loop as the garden — you continue it at home.",
+        "/images/worms-and-gold.jpg",
         [ProductCategory.WormsAndCompost],
         false);
 
