@@ -2,9 +2,6 @@ name: CI/CD
 
 on:
   push:
-    branches:
-      - feature/002-squre-pay
-      - feature/003-bicep-template
   pull_request:
   workflow_dispatch:
 
@@ -22,6 +19,19 @@ env:
   WEBAPP_NAME: app-ashanandanvan-dev
 
 jobs:
+  flags:
+    name: Workflow flags
+    runs-on: ubuntu-latest
+    outputs:
+      run_provision: ${{ steps.set.outputs.run_provision }}
+    steps:
+      - id: set
+        name: Set infrastructure flag
+        run: |
+          # Job-level if + output flag (GitHub Actions recommended). Do not comment out jobs.
+          # Set to true when Bicep should run again.
+          echo "run_provision=false" >> "$GITHUB_OUTPUT"
+
   build:
     name: Build and publish
     runs-on: ubuntu-latest
@@ -54,8 +64,8 @@ jobs:
 
   provision:
     name: Provision Azure (Bicep)
-    needs: build
-    if: github.event_name != 'pull_request'
+    needs: [build, flags]
+    if: github.event_name != 'pull_request' && needs.flags.outputs.run_provision == 'true'
     runs-on: ubuntu-latest
     environment: dev
     outputs:
@@ -184,8 +194,12 @@ jobs:
 
   deploy:
     name: Deploy web app
-    needs: provision
-    if: github.event_name != 'pull_request'
+    needs: [build, provision]
+    if: >-
+      github.event_name != 'pull_request'
+      && !cancelled()
+      && needs.build.result == 'success'
+      && (needs.provision.result == 'success' || needs.provision.result == 'skipped')
     runs-on: ubuntu-latest
     environment: dev
     steps:

@@ -15,31 +15,33 @@
 </section>
 
 <section class="shell">
-    <table class="cart-table">
-        <thead>
-            <tr>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Stock</th>
-                <th>Active</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var product in _products)
-            {
+    <div class="table-scroll">
+        <table class="cart-table cart-table--stack">
+            <thead>
                 <tr>
-                    <td>@product.Name</td>
-                    <td>@CatalogFormatting.CategoryName(product.Category)</td>
-                    <td>@CatalogFormatting.Money(product.Price)</td>
-                    <td>@product.Stock @product.Unit</td>
-                    <td>@(product.IsActive ? "Yes" : "No")</td>
-                    <td><a class="text-link" href="/admin/products/edit/@product.Id">Edit</a></td>
+                    <th>Name</th>
+                    <th>Category</th>
+                    <th>Price</th>
+                    <th>Stock</th>
+                    <th>Active</th>
+                    <th></th>
                 </tr>
-            }
-        </tbody>
-    </table>
+            </thead>
+            <tbody>
+                @foreach (var product in _products)
+                {
+                    <tr>
+                        <td data-label="Name">@product.Name</td>
+                        <td data-label="Category">@CatalogFormatting.CategoryName(product.Category)</td>
+                        <td data-label="Price">@CatalogFormatting.Money(product.Price)</td>
+                        <td data-label="Stock">@product.Stock @product.Unit</td>
+                        <td data-label="Active">@(product.IsActive ? "Yes" : "No")</td>
+                        <td data-label=""><a class="text-link" href="/admin/products/edit/@product.Id">Edit</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
 </section>
 
 @code {
