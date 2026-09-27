@@ -85,7 +85,54 @@
             }
         </form>
         <p class="muted">@Visible.Count() of @_source.Count order@( _source.Count == 1 ? "" : "s")</p>
-        <div class="table-scroll">
+        <div class="order-sort" aria-label="Sort orders">
+            @if (_isAdmin)
+            {
+                <button type="button" class="chip @SortClass("customer")" @onclick='() => SortBy("customer")'>Customer @Arrow("customer")</button>
+            }
+            else
+            {
+                <button type="button" class="chip @SortClass("number")" @onclick='() => SortBy("number")'>Order @Arrow("number")</button>
+            }
+            <button type="button" class="chip @SortClass("when")" @onclick='() => SortBy("when")'>When @Arrow("when")</button>
+            <button type="button" class="chip @SortClass("total")" @onclick='() => SortBy("total")'>Total @Arrow("total")</button>
+            <button type="button" class="chip @SortClass("status")" @onclick='() => SortBy("status")'>Status @Arrow("status")</button>
+        </div>
+        <div class="order-cards">
+            @foreach (var order in Visible)
+            {
+                <article class="order-card">
+                    <button type="button" class="order-card__main" @onclick="() => OpenOrder(order)">
+                        <div class="order-card__who">
+                            <strong>@(_isAdmin ? order.CustomerName : order.OrderNumber)</strong>
+                            <span class="muted">@(_isAdmin ? order.PickupDate.ToString("ddd d MMM") : $"{order.PickupDate:ddd d MMM} · {order.PickupWindow}")</span>
+                        </div>
+                        <div class="order-card__meta">
+                            <span class="order-card__total">@CatalogFormatting.Money(order.Total)</span>
+                            <span class="order-pill order-pill--@StatusTone(order)">@order.StatusLabel</span>
+                        </div>
+                    </button>
+                    @if (HasListActions(order))
+                    {
+                        <div class="order-card__actions">
+                            @if (_isAdmin && order.CanApprove)
+                            {
+                                <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => ApproveAsync(order)">Approve</button>
+                            }
+                            @if (_isAdmin && order.CanReject)
+                            {
+                                <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => RejectAsync(order)">Reject</button>
+                            }
+                            @if (!_isAdmin && order.CanPay && !_needsSquareKeys)
+                            {
+                                <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
+                            }
+                        </div>
+                    }
+                </article>
+            }
+        </div>
+        <div class="table-scroll orders-desktop">
             <table class="cart-table">
                 <thead>
                     <tr>
@@ -188,6 +235,91 @@
     }
 </section>
 
+@if (Opened is not null)
+{
+    var order = Opened;
+    <div class="order-sheet" @onclick="CloseOrder">
+        <div class="order-sheet__panel" @onclick:stopPropagation="true">
+            <div class="order-sheet__grab" aria-hidden="true"></div>
+            <div class="order-sheet__head">
+                <div>
+                    <p class="eyebrow">@order.OrderNumber</p>
+                    <h2>@(_isAdmin ? order.CustomerName : "Your order")</h2>
+                </div>
+                <button type="button" class="text-link" @onclick="CloseOrder">Close</button>
+            </div>
+            <div class="order-sheet__status">
+                <span class="order-pill order-pill--@StatusTone(order)">@order.StatusLabel</span>
+                <strong class="order-card__total">@CatalogFormatting.Money(order.Total)</strong>
+            </div>
+            @if (_isAdmin)
+            {
+                <p class="muted">@order.CustomerEmail</p>
+                @if (!string.IsNullOrWhiteSpace(order.Phone))
+                {
+                    <p>@order.Phone</p>
+                }
+            }
+            <p>Visit / collect @order.PickupDate.ToString("dddd d MMMM") · @order.PickupWindow</p>
+            @if (!string.IsNullOrWhiteSpace(order.CustomerNote))
+            {
+                <p class="muted">@order.CustomerNote</p>
+            }
+            <ul class="order-sheet__items">
+                @foreach (var line in order.Items)
+                {
+                    <li>
+                        <span>@line.Quantity × @line.ProductName</span>
+                        <span>@CatalogFormatting.Money(line.UnitPrice * line.Quantity)</span>
+                        @if (line.IsTrialStay)
+                        {
+                            <small class="muted">Free trial night</small>
+                        }
+                        else if (line.IntendedStayStartsAt is not null)
+                        {
+                            <small class="muted">Confirmed after trial</small>
+                        }
+                        @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                        {
+                            <small class="muted">@line.SlotLabel</small>
+                        }
+                        @if (line.IsTrialStay && line.IntendedStayStartsAt is not null && line.IntendedStayEndsAt is not null)
+                        {
+                            <small class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</small>
+                        }
+                    </li>
+                }
+            </ul>
+            <div class="order-sheet__actions">
+                @if (_isAdmin && order.CanApprove)
+                {
+                    <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => ApproveAsync(order)">Approve</button>
+                }
+                @if (_isAdmin && order.CanReject)
+                {
+                    <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => RejectAsync(order)">Reject</button>
+                }
+                @if (_isAdmin && order.CanPlaceOriginalStay)
+                {
+                    <button class="btn btn--solid" type="button" disabled="@(_acting == order.Id)" @onclick="() => PlaceOriginalAsync(order)">Place original order</button>
+                }
+                @if (_isAdmin && order.CanDeclineLongerStay)
+                {
+                    <button class="btn btn--ghost" type="button" disabled="@(_acting == order.Id)" @onclick="() => DeclineLongerStayAsync(order)">Do not continue</button>
+                }
+                @if (!_isAdmin && order.CanPay && !_needsSquareKeys)
+                {
+                    <button class="btn btn--solid" type="button" disabled="@(_paying == order.OrderNumber)" @onclick="() => PayAsync(order)">Pay online</button>
+                }
+                @if (_isAdmin)
+                {
+                    <a class="text-link" href="@OrderHref(order)">Open full order</a>
+                }
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private IReadOnlyList<OrderSummary> _source = [];
     private bool _isAdmin;
@@ -202,6 +334,9 @@
     private bool _asc;
     private string? _paying;
     private int? _acting;
+    private int? _openId;
+    private OrderSummary? Opened =>
+        _openId is int id ? _source.FirstOrDefault(o => o.Id == id) : null;
     private StoreOptions Store => StoreAccessor.Value;
     private bool _needsSquareKeys =>
         PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
@@ -289,6 +424,22 @@
 
     private string Arrow(string column) =>
         _sort == column ? (_asc ? "↑" : "↓") : "";
+
+    private string SortClass(string column) =>
+        _sort == column ? "chip--active" : string.Empty;
+
+    private void OpenOrder(OrderSummary order) => _openId = order.Id;
+
+    private void CloseOrder() => _openId = null;
+
+    private bool HasListActions(OrderSummary order) =>
+        (_isAdmin && (order.CanApprove || order.CanReject))
+        || (!_isAdmin && order.CanPay && !_needsSquareKeys);
+
+    private static string StatusTone(OrderSummary order) =>
+        order.Status.IsRejected() ? "no"
+        : order.Status.IsApproved() ? "ok"
+        : "wait";
 
     private string OrderHref(OrderSummary order) =>
         _isAdmin ? $"/admin/orders/{order.OrderNumber}" : $"/checkout/confirmation/{order.OrderNumber}";
