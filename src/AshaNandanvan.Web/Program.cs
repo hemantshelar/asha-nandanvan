@@ -97,13 +97,13 @@ builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents()
     .AddHubOptions(options =>
     {
-        options.ClientTimeoutInterval = TimeSpan.FromMinutes(5);
+        options.ClientTimeoutInterval = TimeSpan.FromMinutes(15);
         options.KeepAliveInterval = TimeSpan.FromSeconds(15);
         options.HandshakeTimeout = TimeSpan.FromSeconds(30);
     });
 builder.Services.Configure<CircuitOptions>(options =>
 {
-    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(15);
+    options.DisconnectedCircuitRetentionPeriod = TimeSpan.FromMinutes(20);
 });
 
 var app = builder.Build();

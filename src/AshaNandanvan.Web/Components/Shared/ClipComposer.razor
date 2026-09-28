@@ -36,11 +36,17 @@
     else
     {
         <p class="muted">Uploading to @_status.ChannelTitle as @(Privacy == YouTubePrivacy.Public ? "public" : "unlisted").</p>
+        <p class="muted">On iPhone tap Choose video and pick from Photos. Keep this page open while it uploads. On a computer you can also drop a file on the box.</p>
         <div class="clip-drop"
              ondragover="event.preventDefault()"
              ondrop="ashaDropVideo(event)">
-            <p>Drop a video here</p>
-            <button type="button" class="btn btn--ghost" disabled="@(_busy || _uploading)" @onclick="PickFileAsync">Choose video</button>
+            <label class="btn btn--ghost clip-file-btn">
+                Choose video
+                <input type="file"
+                       accept="video/*,.mov,.mp4,.m4v,video/quicktime"
+                       class="clip-file-input"
+                       onchange="ashaOnVideoInput(this)" />
+            </label>
             @if (!string.IsNullOrWhiteSpace(_fileName))
             {
                 <p class="muted">@_fileName · @FormatSize(_fileSize)</p>
@@ -204,6 +210,11 @@
         {
             _self ??= DotNetObjectReference.Create(this);
             await Js.InvokeVoidAsync("ashaBindPicker", _self);
+            if (_fileSize <= 0)
+            {
+                var peek = await Js.InvokeAsync<PickedVideoFile?>("ashaPeekPickedVideo");
+                OnVideoPicked(peek);
+            }
         }
         catch (JSDisconnectedException)
         {
@@ -261,19 +272,6 @@
         ApplyDefaults();
     }
 
-    private void PickFileAsync()
-    {
-        try
-        {
-            _self ??= DotNetObjectReference.Create(this);
-            _ = Js.InvokeVoidAsync("ashaPickVideo", _self);
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add(ex.Message, Severity.Error);
-        }
-    }
-
     [JSInvokable]
     public void OnVideoPicked(PickedVideoFile? info)
     {
@@ -327,6 +325,12 @@
         if (!_status.IsConnected)
         {
             throw new InvalidOperationException("Connect YouTube first, or paste a link.");
+        }
+
+        if (_fileSize <= 0)
+        {
+            var peek = await Js.InvokeAsync<PickedVideoFile?>("ashaPeekPickedVideo");
+            OnVideoPicked(peek);
         }
 
         if (_fileSize is <= 0 or > 2L * 1024 * 1024 * 1024)

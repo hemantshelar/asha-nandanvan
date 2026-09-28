@@ -362,6 +362,20 @@ h1.hero__title {
     border-radius: 16px;
 }
 .clip-drop p { margin: 0; }
+.clip-file-btn {
+    position: relative;
+    display: inline-flex;
+    overflow: hidden;
+}
+.clip-file-input {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    font-size: 16px;
+    cursor: pointer;
+}
 .clip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.9rem; }
 .clip-progress {
     height: 8px;
