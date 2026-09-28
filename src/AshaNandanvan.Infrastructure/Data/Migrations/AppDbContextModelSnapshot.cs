@@ -545,6 +545,41 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.ToTable("StayAlbumReactions");
                 });
 
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.YouTubeChannelLink", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ChannelId")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<string>("ChannelTitle")
+                        .IsRequired()
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
+
+                    b.Property<DateTimeOffset>("ConnectedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("ConnectedByUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("RefreshToken")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("YouTubeChannelLinks");
+                });
+
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.Product", b =>
                 {
                     b.Property<int>("Id")

@@ -47,6 +47,9 @@ public static class DependencyInjection
         services.AddScoped<IDogSittingService, DogSittingService>();
         services.AddScoped<IDogBreedService, DogBreedService>();
         services.AddScoped<IMediaService, MediaService>();
+        services.AddSingleton<YouTubeUploadSessionStore>();
+        services.AddHttpClient(YouTubeUploadService.HttpClientName);
+        services.AddScoped<IYouTubeUploadService, YouTubeUploadService>();
         services.AddScoped<IStayAlbumService, StayAlbumService>();
         services.AddScoped<IOrderService, OrderService>();
         services.AddScoped<DatabaseSeeder>();

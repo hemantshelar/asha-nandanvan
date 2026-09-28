@@ -1,0 +1,412 @@
+@inject IYouTubeUploadService YouTube
+@inject NavigationManager Navigation
+@inject IJSRuntime Js
+@inject ISnackbar Snackbar
+@implements IAsyncDisposable
+
+<div class="admin-form panel media-form">
+    <h2>@Heading</h2>
+    <p class="muted">@Intro</p>
+    <p class="muted">@YouTubeClipDefaults.PrivacyLabel(Privacy)</p>
+
+    @if (AllowUpload)
+    {
+        <div class="clip-source" role="tablist" aria-label="How to add the clip">
+            <button type="button" class="chip @(_source == "link" ? "chip--active" : null)" @onclick='() => _source = "link"'>Paste link</button>
+            <button type="button" class="chip @(_source == "upload" ? "chip--active" : null)" @onclick="UseUpload">Upload</button>
+        </div>
+    }
+
+    @if (_source == "link")
+    {
+        <label>
+            YouTube link
+            <input @bind="SourceUrl" placeholder="https://youtu.be/your-video" />
+        </label>
+    }
+    else if (!_status.IsConfigured)
+    {
+        <p class="muted">Add Google keys on the server before you can upload. You can still paste a link.</p>
+    }
+    else if (!_status.IsConnected)
+    {
+        <p class="muted">Connect the Google account that owns the YouTube channel. This is separate from shop sign-in.</p>
+        <a class="btn btn--solid" href="@ConnectHref">Connect YouTube</a>
+    }
+    else
+    {
+        <p class="muted">Uploading to @_status.ChannelTitle as @(Privacy == YouTubePrivacy.Public ? "public" : "unlisted").</p>
+        <div class="clip-drop"
+             ondragover="event.preventDefault()"
+             ondrop="ashaDropVideo(event)">
+            <p>Drop a video here</p>
+            <button type="button" class="btn btn--ghost" disabled="@(_busy || _uploading)" @onclick="PickFileAsync">Choose video</button>
+            @if (!string.IsNullOrWhiteSpace(_fileName))
+            {
+                <p class="muted">@_fileName · @FormatSize(_fileSize)</p>
+            }
+        </div>
+    }
+
+    <label>
+        Title
+        <input @bind="Title" placeholder="@TitlePlaceholder" />
+    </label>
+
+    @if (Destination == ClipComposerDestination.Album)
+    {
+        <label>
+            Asha’s note
+            <input @bind="Caption" maxlength="400" placeholder="One line from the stay" />
+        </label>
+        <label>
+            Filmed on
+            <input type="date" @bind="FilmedOn" />
+        </label>
+    }
+    else
+    {
+        <label>
+            Offer
+            <select @bind="OfferSlug">
+                @foreach (var offer in OfferCatalog.All)
+                {
+                    <option value="@offer.Slug">@offer.Title</option>
+                }
+            </select>
+        </label>
+        <label>
+            Sort order
+            <input type="number" @bind="SortOrder" />
+        </label>
+        <label class="check">
+            <input type="checkbox" @bind="IsPublished" />
+            Published
+        </label>
+    }
+
+    @if (_source == "upload" && _status.IsConnected)
+    {
+        <button type="button" class="text-link" @onclick="() => _more = !_more">@(_more ? "Hide YouTube details" : "More")</button>
+        @if (_more)
+        {
+            <label>
+                Description
+                <textarea @bind="Description" rows="3"></textarea>
+            </label>
+            <label>
+                Tags
+                <input @bind="Tags" placeholder="comma separated" />
+            </label>
+        }
+    }
+
+    @if (_uploading)
+    {
+        <p class="muted">Uploading @_percent% — keep this page open.</p>
+        <div class="clip-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="@_percent">
+            <span style="width: @_percent%"></span>
+        </div>
+    }
+
+    <div class="clip-actions">
+        <button class="btn btn--solid" type="button" disabled="@(_busy || _uploading)" @onclick="SubmitAsync">@SubmitLabel</button>
+        @if (Cancel.HasDelegate)
+        {
+            <button class="btn btn--ghost" type="button" disabled="@(_busy || _uploading)" @onclick="OnCancelAsync">Cancel</button>
+        }
+        @if (_source == "upload" && _status.IsConnected)
+        {
+            <button class="text-link" type="button" disabled="@(_busy || _uploading)" @onclick="DisconnectAsync">Disconnect YouTube</button>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public ClipComposerDestination Destination { get; set; }
+    [Parameter] public string Heading { get; set; } = "Add clip";
+    [Parameter] public string SubmitLabel { get; set; } = "Add clip";
+    [Parameter] public bool AllowUpload { get; set; } = true;
+    [Parameter] public string PetName { get; set; } = string.Empty;
+    [Parameter] public string StayLabel { get; set; } = string.Empty;
+    [Parameter] public string SourceUrl { get; set; } = string.Empty;
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Caption { get; set; } = string.Empty;
+    [Parameter] public DateTime? FilmedOn { get; set; }
+    [Parameter] public string OfferSlug { get; set; } = string.Empty;
+    [Parameter] public int SortOrder { get; set; }
+    [Parameter] public bool IsPublished { get; set; } = true;
+    [Parameter] public EventCallback<ClipComposerSave> Save { get; set; }
+    [Parameter] public EventCallback Cancel { get; set; }
+
+    private YouTubeConnectionStatus _status = new(false, false, string.Empty);
+    private string _source = "link";
+    private bool _more;
+    private bool _busy;
+    private bool _uploading;
+    private int _percent;
+    private string _fileName = string.Empty;
+    private long _fileSize;
+    private string _fileType = "video/mp4";
+    private string Description { get; set; } = string.Empty;
+    private string Tags { get; set; } = string.Empty;
+    private DotNetObjectReference<ClipComposer>? _self;
+    private bool _ready;
+
+    private YouTubePrivacy Privacy =>
+        Destination == ClipComposerDestination.Media ? YouTubePrivacy.Public : YouTubePrivacy.Unlisted;
+
+    private string Intro =>
+        _source == "upload"
+            ? Destination == ClipComposerDestination.Album
+                ? "Upload from your phone or computer. We send it to YouTube as unlisted."
+                : "Upload from your phone or computer. We send it to YouTube as public."
+            : Destination == ClipComposerDestination.Album
+                ? "Paste an unlisted YouTube link so it is not on your public channel browse."
+                : "Paste a YouTube watch, Shorts, or youtu.be link.";
+
+    private string TitlePlaceholder =>
+        Destination == ClipComposerDestination.Album
+            ? "Optional — we can use the dog's name"
+            : "Optional — we can name it after the offer";
+
+    private string ConnectHref
+    {
+        get
+        {
+            var path = "/" + Navigation.ToBaseRelativePath(Navigation.Uri);
+            var cut = path.IndexOf('?', StringComparison.Ordinal);
+            if (cut >= 0)
+            {
+                path = path[..cut];
+            }
+
+            return $"/admin/youtube/connect?returnUrl={Uri.EscapeDataString(path)}";
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ApplyDefaults();
+        _status = await YouTube.GetStatusAsync();
+        NotifyConnectResult();
+        _ready = true;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (_source != "upload" || !_status.IsConnected)
+        {
+            return;
+        }
+
+        try
+        {
+            _self ??= DotNetObjectReference.Create(this);
+            await Js.InvokeVoidAsync("ashaBindPicker", _self);
+        }
+        catch (JSDisconnectedException)
+        {
+        }
+    }
+
+    private void NotifyConnectResult()
+    {
+        var query = Navigation.ToAbsoluteUri(Navigation.Uri).Query;
+        if (query.Contains("youtube=connected", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("YouTube connected.", Severity.Success);
+            _source = "upload";
+        }
+        else if (query.Contains("youtube=denied", StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("YouTube was not connected. Try again with the channel account.", Severity.Error);
+        }
+    }
+
+    private void ApplyDefaults()
+    {
+        if (Destination == ClipComposerDestination.Album)
+        {
+            FilmedOn ??= DateTime.Today;
+            if (string.IsNullOrWhiteSpace(Description))
+            {
+                Description = YouTubeClipDefaults.AlbumDescription(StayLabel);
+            }
+
+            if (string.IsNullOrWhiteSpace(Tags))
+            {
+                Tags = string.Join(", ", YouTubeClipDefaults.AlbumTags(PetName));
+            }
+        }
+        else
+        {
+            var offer = OfferCatalog.Find(OfferSlug) ?? OfferCatalog.FreshProduce;
+            OfferSlug = offer.Slug;
+            if (string.IsNullOrWhiteSpace(Description))
+            {
+                Description = YouTubeClipDefaults.MediaDescription(offer);
+            }
+
+            if (string.IsNullOrWhiteSpace(Tags))
+            {
+                Tags = string.Join(", ", YouTubeClipDefaults.MediaTags(offer));
+            }
+        }
+    }
+
+    private void UseUpload()
+    {
+        _source = "upload";
+        ApplyDefaults();
+    }
+
+    private void PickFileAsync()
+    {
+        try
+        {
+            _self ??= DotNetObjectReference.Create(this);
+            _ = Js.InvokeVoidAsync("ashaPickVideo", _self);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+    }
+
+    [JSInvokable]
+    public void OnVideoPicked(PickedVideoFile? info)
+    {
+        if (info is null || info.Size <= 0)
+        {
+            return;
+        }
+
+        _fileName = info.Name;
+        _fileSize = info.Size;
+        _fileType = string.IsNullOrWhiteSpace(info.Type) ? "video/mp4" : info.Type;
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (!_ready || _busy || _uploading)
+        {
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            if (_source == "upload")
+            {
+                await UploadThenSaveAsync();
+                return;
+            }
+
+            if (!YouTubeLinks.TryParseVideoId(SourceUrl, out _))
+            {
+                throw new InvalidOperationException("Paste a YouTube watch, Shorts, or youtu.be link.");
+            }
+
+            await Save.InvokeAsync(BuildSave(SourceUrl, false));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _busy = false;
+            _uploading = false;
+        }
+    }
+
+    private async Task UploadThenSaveAsync()
+    {
+        if (!_status.IsConnected)
+        {
+            throw new InvalidOperationException("Connect YouTube first, or paste a link.");
+        }
+
+        if (_fileSize is <= 0 or > 2L * 1024 * 1024 * 1024)
+        {
+            throw new InvalidOperationException("Choose a video under 2 GB.");
+        }
+
+        var title = ResolvedTitle();
+        var session = await YouTube.StartResumableAsync(new YouTubeUploadRequest(
+            title,
+            Description,
+            SplitTags(Tags),
+            Privacy,
+            _fileType,
+            _fileSize));
+
+        _uploading = true;
+        _percent = 0;
+        _self ??= DotNetObjectReference.Create(this);
+        var videoId = await Js.InvokeAsync<string>("ashaYouTubeUpload", session.SessionId, _self);
+        if (!YouTubeLinks.TryParseVideoId(videoId, out var id))
+        {
+            throw new InvalidOperationException("YouTube finished but the video id was not valid.");
+        }
+
+        await Save.InvokeAsync(BuildSave(YouTubeLinks.WatchUrl(id), true));
+    }
+
+    private ClipComposerSave BuildSave(string sourceUrl, bool fromUpload) => new()
+    {
+        SourceUrl = sourceUrl,
+        Title = Title,
+        Caption = Caption,
+        FilmedOn = FilmedOn,
+        OfferSlug = OfferSlug,
+        SortOrder = SortOrder,
+        IsPublished = IsPublished,
+        FromUpload = fromUpload
+    };
+
+    private string ResolvedTitle()
+    {
+        if (!string.IsNullOrWhiteSpace(Title))
+        {
+            return Title.Trim();
+        }
+
+        return Destination == ClipComposerDestination.Album
+            ? YouTubeClipDefaults.AlbumTitle(PetName)
+            : YouTubeClipDefaults.MediaTitle(OfferCatalog.Find(OfferSlug) ?? OfferCatalog.FreshProduce);
+    }
+
+    private Task OnCancelAsync() => Cancel.InvokeAsync();
+
+    private async Task DisconnectAsync()
+    {
+        await YouTube.DisconnectAsync();
+        _status = await YouTube.GetStatusAsync();
+        _source = "link";
+    }
+
+    [JSInvokable]
+    public void Report(long sent, long total)
+    {
+        _percent = total <= 0 ? 0 : (int)Math.Clamp(sent * 100 / total, 0, 100);
+        _ = InvokeAsync(StateHasChanged);
+    }
+
+    private static IReadOnlyList<string> SplitTags(string value) =>
+        value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+
+    private static string FormatSize(long bytes) =>
+        bytes >= 1_000_000_000 ? $"{bytes / 1_000_000_000d:0.0} GB"
+        : bytes >= 1_000_000 ? $"{bytes / 1_000_000d:0.0} MB"
+        : $"{Math.Max(bytes / 1000d, 1):0} KB";
+
+    public async ValueTask DisposeAsync()
+    {
+        _self?.Dispose();
+        await ValueTask.CompletedTask;
+    }
+
+}

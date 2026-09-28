@@ -351,6 +351,30 @@ h1.hero__title {
 }
 .media-card__admin { display: flex; flex-wrap: wrap; align-items: center; gap: 0.85rem; }
 .media-form { margin: 1.4rem 0; }
+.clip-source { display: flex; flex-wrap: wrap; gap: 0.55rem; margin: 0.4rem 0 0.9rem; }
+.clip-drop {
+    display: grid;
+    gap: 0.7rem;
+    justify-items: start;
+    margin: 0.2rem 0 0.8rem;
+    padding: 1rem 1.1rem;
+    border: 1px dashed rgba(255,255,255,0.18);
+    border-radius: 16px;
+}
+.clip-drop p { margin: 0; }
+.clip-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 0.9rem; }
+.clip-progress {
+    height: 8px;
+    border-radius: 99px;
+    background: #1a2218;
+    overflow: hidden;
+    margin: 0.35rem 0 0.8rem;
+}
+.clip-progress span {
+    display: block;
+    height: 100%;
+    background: var(--lime);
+}
 .media-card strong {
     font-family: Oswald, Impact, sans-serif;
     font-size: 1.35rem;

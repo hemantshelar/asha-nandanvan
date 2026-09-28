@@ -25,6 +25,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StayAlbumComment> StayAlbumComments => Set<StayAlbumComment>();
     public DbSet<StayAlbumMember> StayAlbumMembers => Set<StayAlbumMember>();
     public DbSet<StayAlbumReaction> StayAlbumReactions => Set<StayAlbumReaction>();
+    public DbSet<YouTubeChannelLink> YouTubeChannelLinks => Set<YouTubeChannelLink>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -186,6 +187,14 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.Property(r => r.UserId).HasMaxLength(450).IsRequired();
             entity.HasIndex(r => new { r.ClipId, r.UserId }).IsUnique();
+        });
+
+        builder.Entity<YouTubeChannelLink>(entity =>
+        {
+            entity.Property(l => l.RefreshToken).IsRequired();
+            entity.Property(l => l.ChannelId).HasMaxLength(80).IsRequired();
+            entity.Property(l => l.ChannelTitle).HasMaxLength(160).IsRequired();
+            entity.Property(l => l.ConnectedByUserId).HasMaxLength(450).IsRequired();
         });
     }
 }

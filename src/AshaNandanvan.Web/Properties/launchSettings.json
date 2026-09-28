@@ -19,6 +19,15 @@
           "ASPNETCORE_ENVIRONMENT": "Development"
         }
       },
+      "https (no browser attach)": {
+        "commandName": "Project",
+        "dotnetRunMessages": true,
+        "launchBrowser": false,
+        "applicationUrl": "https://localhost:7095;http://localhost:5259",
+        "environmentVariables": {
+          "ASPNETCORE_ENVIRONMENT": "Development"
+        }
+      },
       "https (Docker SQL)": {
         "commandName": "Project",
         "dotnetRunMessages": true,

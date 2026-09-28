@@ -56,27 +56,11 @@
 
         @if (_album.CanManage)
         {
-            <form class="admin-form panel media-form" @onsubmit="AddClipAsync" @onsubmit:preventDefault>
-                <h2>Add a clip</h2>
-                <p class="muted">Paste an unlisted YouTube link so it is not on your public channel browse.</p>
-                <label>
-                    YouTube link
-                    <input @bind="_clip.SourceUrl" placeholder="https://youtu.be/your-video" required />
-                </label>
-                <label>
-                    Title
-                    <input @bind="_clip.Title" placeholder="Optional — we can use the dog's name" />
-                </label>
-                <label>
-                    Asha’s note
-                    <input @bind="_clip.Caption" maxlength="400" placeholder="One line from the stay" />
-                </label>
-                <label>
-                    Filmed on
-                    <input type="date" @bind="_clip.FilmedOn" />
-                </label>
-                <button class="btn btn--solid" type="submit" disabled="@_busy">Add clip</button>
-            </form>
+            <ClipComposer @key="_composerKey"
+                          Destination="ClipComposerDestination.Album"
+                          PetName="_album.PetName"
+                          StayLabel="_album.StayLabel"
+                          Save="AddClipAsync" />
         }
 
         @if (_album.Clips.Count == 0)
@@ -84,7 +68,7 @@
             <p class="muted">
                 @if (_album.CanManage)
                 {
-                    <text>No clips yet. Add an unlisted YouTube link above.</text>
+                    <text>No clips yet. Paste a link or upload a video above.</text>
                 }
                 else
                 {
@@ -215,8 +199,8 @@
 
     private StayAlbumDetail? _album;
     private StayAlbumClipView? _playing;
-    private StayAlbumClipEdit _clip = new();
     private string _title = string.Empty;
+    private int _composerKey;
     private string _comment = string.Empty;
     private string _inviteUrl = string.Empty;
     private string? _error;
@@ -274,10 +258,20 @@
         await RunAsync(() => Albums.RenameAsync(Id, _userId, _isAdmin, _title), "Album renamed.");
     }
 
-    private async Task AddClipAsync()
+    private async Task AddClipAsync(ClipComposerSave clip)
     {
-        await RunAsync(() => Albums.AddClipAsync(Id, _userId, _isAdmin, _clip), "Clip added.");
-        _clip = new StayAlbumClipEdit();
+        await RunAsync(
+            () => Albums.AddClipAsync(Id, _userId, _isAdmin, new StayAlbumClipEdit
+            {
+                SourceUrl = clip.SourceUrl,
+                Title = clip.Title,
+                Caption = clip.Caption,
+                FilmedOn = clip.FilmedOn
+            }),
+            clip.FromUpload
+                ? "Clip added. YouTube may take a minute to process."
+                : "Clip added.");
+        _composerKey++;
     }
 
     private async Task DeleteClipAsync(StayAlbumClipView clip)

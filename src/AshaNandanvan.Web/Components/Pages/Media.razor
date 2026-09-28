@@ -29,36 +29,18 @@
     <AuthorizeView Roles="@AppRoles.Admin">
         @if (_formOpen)
         {
-            <form class="admin-form panel media-form" @onsubmit="SaveAsync" @onsubmit:preventDefault>
-                <h2>@(_model.Id is int ? "Edit clip" : "Add clip")</h2>
-                <label>
-                    YouTube link
-                    <input @bind="_model.SourceUrl" placeholder="https://youtu.be/your-video" required />
-                </label>
-                <label>
-                    Title
-                    <input @bind="_model.Title" placeholder="Optional — we can name it after the offer" />
-                </label>
-                <label>
-                    Offer
-                    <select @bind="_model.OfferSlug" required>
-                        @foreach (var offer in OfferCatalog.All)
-                        {
-                            <option value="@offer.Slug">@offer.Title</option>
-                        }
-                    </select>
-                </label>
-                <label>
-                    Sort order
-                    <input type="number" @bind="_model.SortOrder" />
-                </label>
-                <label class="check">
-                    <input type="checkbox" @bind="_model.IsPublished" />
-                    Published
-                </label>
-                <button class="btn btn--solid" type="submit" disabled="@_busy">Save</button>
-                <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="CancelForm">Cancel</button>
-            </form>
+            <ClipComposer @key="_composerKey"
+                          Destination="ClipComposerDestination.Media"
+                          Heading="@(_model.Id is int ? "Edit clip" : "Add clip")"
+                          SubmitLabel="@(_model.Id is int ? "Save" : "Add clip")"
+                          AllowUpload="@(_model.Id is null)"
+                          SourceUrl="@_model.SourceUrl"
+                          Title="@_model.Title"
+                          OfferSlug="@_model.OfferSlug"
+                          SortOrder="@_model.SortOrder"
+                          IsPublished="@_model.IsPublished"
+                          Save="SaveAsync"
+                          Cancel="CancelForm" />
         }
     </AuthorizeView>
 
@@ -66,7 +48,7 @@
     {
         <p class="muted">
             <AuthorizeView Roles="@AppRoles.Admin" Context="admin">
-                <Authorized>No clips in this group yet. Add a YouTube link to get started.</Authorized>
+                <Authorized>No clips in this group yet. Paste a link or upload a video to get started.</Authorized>
                 <NotAuthorized>No clips in this group yet.</NotAuthorized>
             </AuthorizeView>
         </p>
@@ -91,10 +73,10 @@
     private IReadOnlyList<MediaClip> _clips = [];
     private bool _isAdmin;
     private bool _formOpen;
-    private bool _busy;
     private bool _adminResolved;
     private string? _listKey;
     private MediaEditModel _model = NewModel(null);
+    private int _composerKey;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -130,6 +112,7 @@
     private void StartAdd()
     {
         _model = NewModel(CurrentSlug());
+        _composerKey++;
         _formOpen = true;
     }
 
@@ -144,6 +127,7 @@
             SortOrder = clip.SortOrder,
             IsPublished = clip.IsPublished
         };
+        _composerKey++;
         _formOpen = true;
     }
 
@@ -153,23 +137,27 @@
         _model = NewModel(CurrentSlug());
     }
 
-    private async Task SaveAsync()
+    private async Task SaveAsync(ClipComposerSave clip)
     {
-        _busy = true;
         try
         {
+            _model.SourceUrl = clip.SourceUrl;
+            _model.Title = clip.Title;
+            _model.OfferSlug = clip.OfferSlug;
+            _model.SortOrder = clip.SortOrder;
+            _model.IsPublished = clip.IsPublished;
             await MediaItems.SaveAsync(_model);
-            Snackbar.Add(_model.Id is int ? "Clip saved." : "Clip added.", Severity.Success);
+            Snackbar.Add(
+                _model.Id is int ? "Clip saved."
+                : clip.FromUpload ? "Clip added. YouTube may take a minute to process."
+                : "Clip added.",
+                Severity.Success);
             _formOpen = false;
             await ReloadAsync();
         }
         catch (Exception ex)
         {
             Snackbar.Add(ex.Message, Severity.Error);
-        }
-        finally
-        {
-            _busy = false;
         }
     }
 
