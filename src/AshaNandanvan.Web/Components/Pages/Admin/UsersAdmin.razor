@@ -1,0 +1,178 @@
+@page "/admin/users"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IUserAdminService People
+@inject AuthenticationStateProvider Auth
+@inject ISnackbar Snackbar
+
+<PageTitle>People — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>People</h1>
+        <p class="lede">Who has signed in, how they arrived, and whether their account is open.</p>
+    </div>
+</section>
+
+<section class="shell">
+    <form class="order-filters" @onsubmit:preventDefault>
+        <label>
+            Name or email
+            <input @bind="_search" @bind:event="oninput" @bind:after="ReloadAsync" placeholder="Search" />
+        </label>
+        <label>
+            Arrived via
+            <select @bind="_source" @bind:after="ReloadAsync">
+                <option value="">Any</option>
+                <option value="@UserSignupSource.AlbumInvite">Album invite</option>
+                <option value="@UserSignupSource.Site">Website</option>
+            </select>
+        </label>
+        <label>
+            Status
+            <select @bind="_status" @bind:after="ReloadAsync">
+                <option value="">Any</option>
+                <option value="active">Active</option>
+                <option value="blocked">Blocked</option>
+            </select>
+        </label>
+        <label>
+            Activity
+            <select @bind="_guestsOnly" @bind:after="ReloadAsync">
+                <option value="false">Everyone</option>
+                <option value="true">Guests only</option>
+            </select>
+        </label>
+    </form>
+
+    @if (_people.Count == 0)
+    {
+        <p>No people match those filters.</p>
+    }
+    else
+    {
+        <p class="muted">@_people.Count person@(_people.Count == 1 ? "" : "s")</p>
+        <div class="order-cards">
+            @foreach (var person in _people)
+            {
+                <article class="order-card">
+                    <a class="order-card__main" href="/admin/users/@person.Id">
+                        <div class="order-card__who">
+                            <strong>@person.Name</strong>
+                            <span class="muted">@person.Email</span>
+                        </div>
+                        <div class="order-card__meta">
+                            <span class="people-pill @SourceClass(person)">@UserSignup.SourceLabel(person.SignupSource)</span>
+                            <span class="people-pill @(person.IsBlocked ? "people-pill--blocked" : "people-pill--ok")">@(person.IsBlocked ? "Blocked" : "Active")</span>
+                        </div>
+                    </a>
+                </article>
+            }
+        </div>
+        <div class="table-scroll orders-desktop">
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>Person</th>
+                        <th>Arrived</th>
+                        <th>Now</th>
+                        <th>Sign-in</th>
+                        <th>Orders</th>
+                        <th>Albums</th>
+                        <th>Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var person in _people)
+                    {
+                        <tr>
+                            <td>
+                                <a class="text-link" href="/admin/users/@person.Id">@person.Name</a>
+                                <div class="muted">@person.Email</div>
+                                <div class="muted">Joined @When(person.SignedUpAt)</div>
+                            </td>
+                            <td>
+                                <span class="people-pill @SourceClass(person)">@UserSignup.SourceLabel(person.SignupSource)</span>
+                                @if (person.LaterBookedStay)
+                                {
+                                    <div class="muted people-note">Later booked a stay</div>
+                                }
+                            </td>
+                            <td>@UserSignup.ActivityLabel(person.Activity)</td>
+                            <td>@(person.SignInProviders.Count == 0 ? "—" : string.Join(" · ", person.SignInProviders))</td>
+                            <td>@person.OrderCount</td>
+                            <td>
+                                @if (person.OwnedAlbumCount == 0 && person.GuestAlbumCount == 0)
+                                {
+                                    <text>—</text>
+                                }
+                                else
+                                {
+                                    <div>@person.OwnedAlbumCount owner</div>
+                                    <div class="muted">@person.GuestAlbumCount guest</div>
+                                }
+                            </td>
+                            <td>
+                                <span class="people-pill @(person.IsBlocked ? "people-pill--blocked" : "people-pill--ok")">
+                                    @(person.IsBlocked ? "Blocked" : "Active")
+                                </span>
+                            </td>
+                            <td><a class="text-link" href="/admin/users/@person.Id">Open</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</section>
+
+@code {
+    private IReadOnlyList<UserAdminListItem> _people = [];
+    private string? _actorId;
+    private string _search = string.Empty;
+    private string _source = string.Empty;
+    private string _status = string.Empty;
+    private string _guestsOnly = "false";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        _actorId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_actorId))
+        {
+            return;
+        }
+
+        try
+        {
+            UserSignupSource? source = Enum.TryParse<UserSignupSource>(_source, out var parsed) ? parsed : null;
+            bool? blocked = _status switch
+            {
+                "active" => false,
+                "blocked" => true,
+                _ => null
+            };
+            _people = await People.ListAsync(_actorId, new UserAdminListQuery(
+                string.IsNullOrWhiteSpace(_search) ? null : _search.Trim(),
+                source,
+                blocked,
+                _guestsOnly == "true"));
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+    }
+
+    private static string SourceClass(UserAdminListItem person) =>
+        person.SignupSource == UserSignupSource.AlbumInvite ? "people-pill--invite" : "people-pill--site";
+
+    private static string When(DateTimeOffset at) =>
+        at.ToOffset(BookingPricing.SydneyOffset(at)).ToString("d MMM yyyy");
+}

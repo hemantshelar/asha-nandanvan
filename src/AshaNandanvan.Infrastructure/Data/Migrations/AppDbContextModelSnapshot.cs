@@ -686,14 +686,25 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                         .IsConcurrencyToken()
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset?>("BlockedAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<string>("BlockedReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
                     b.Property<string>("DisplayName")
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(160)
+                        .HasColumnType("nvarchar(160)");
 
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
                     b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsBlocked")
                         .HasColumnType("bit");
 
                     b.Property<bool>("LockoutEnabled")
@@ -722,6 +733,12 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("nvarchar(max)");
 
+                    b.Property<DateTimeOffset>("SignedUpAt")
+                        .HasColumnType("datetimeoffset");
+
+                    b.Property<int>("SignupSource")
+                        .HasColumnType("int");
+
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("bit");
 
@@ -730,6 +747,10 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("IsBlocked");
+
+                    b.HasIndex("SignupSource");
 
                     b.HasIndex("NormalizedEmail")
                         .HasDatabaseName("EmailIndex");

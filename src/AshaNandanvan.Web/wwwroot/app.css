@@ -613,7 +613,9 @@ h1.hero__title {
     text-align: left;
     cursor: pointer;
     font: inherit;
+    text-decoration: none;
 }
+a.order-card__main:hover { color: inherit; }
 .order-card__who { display: flex; flex-direction: column; gap: 0.2rem; min-width: 0; }
 .order-card__who strong {
     font-size: 1.05rem;
@@ -883,6 +885,28 @@ input, select, textarea {
 .terms { margin: 1rem 0; color: var(--muted); }
 .terms summary { cursor: pointer; color: var(--lime); font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
 .terms p { margin-top: 0.6rem; line-height: 1.55; }
+.people-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: #1b2319;
+    color: var(--muted);
+}
+.people-pill--invite { background: #24351c; color: var(--lime); }
+.people-pill--site { background: #1b2319; color: var(--text); }
+.people-pill--blocked { background: #3a1d1d; color: #f0b4b4; }
+.people-pill--ok { background: #1b2319; color: var(--lime); }
+.people-note { margin: 0.35rem 0 0; }
+.people-actions { display: flex; flex-wrap: wrap; gap: 0.75rem; margin-top: 1.2rem; }
+.people-confirm { margin-top: 1.4rem; display: grid; gap: 0.75rem; max-width: 28rem; }
+.people-confirm input, .people-confirm textarea { width: 100%; }
+.people-detail { display: grid; gap: 1.25rem; max-width: 46rem; padding-bottom: 2rem; }
+.people-detail h2 { margin: 0 0 0.75rem; }
 .login-panel { max-width: 36rem; }
 .login-actions { display: flex; flex-direction: column; align-items: stretch; gap: 0.75rem; max-width: 22rem; }
 .login-actions .btn { width: 100%; text-align: center; }

@@ -196,5 +196,13 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(l => l.ChannelTitle).HasMaxLength(160).IsRequired();
             entity.Property(l => l.ConnectedByUserId).HasMaxLength(450).IsRequired();
         });
+
+        builder.Entity<ApplicationUser>(entity =>
+        {
+            entity.Property(u => u.DisplayName).HasMaxLength(160);
+            entity.Property(u => u.BlockedReason).HasMaxLength(200);
+            entity.HasIndex(u => u.IsBlocked);
+            entity.HasIndex(u => u.SignupSource);
+        });
     }
 }

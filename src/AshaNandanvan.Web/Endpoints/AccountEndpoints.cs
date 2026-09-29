@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using AshaNandanvan.Application.Common;
 using AshaNandanvan.Application.Options;
+using AshaNandanvan.Application.Users;
 using AshaNandanvan.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -49,7 +50,9 @@ public static class AccountEndpoints
                     UserName = email,
                     Email = email,
                     EmailConfirmed = true,
-                    DisplayName = info.Principal.FindFirstValue(ClaimTypes.Name)
+                    DisplayName = info.Principal.FindFirstValue(ClaimTypes.Name),
+                    SignupSource = UserSignup.FromReturnUrl(returnUrl),
+                    SignedUpAt = DateTimeOffset.UtcNow
                 };
 
                 var create = await userManager.CreateAsync(user);
@@ -68,6 +71,11 @@ public static class AccountEndpoints
                      && !await userManager.IsInRoleAsync(user, AppRoles.Admin))
             {
                 await userManager.AddToRoleAsync(user, AppRoles.Admin);
+            }
+
+            if (user.IsBlocked)
+            {
+                return Results.Redirect("/account/login?error=blocked");
             }
 
             var existingLogin = await userManager.FindByLoginAsync(info.LoginProvider, info.ProviderKey);

@@ -32,6 +32,12 @@ public sealed class OrderService : IOrderService
     {
         _ = payNow;
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var blocked = await db.Users.AnyAsync(u => u.Id == userId && u.IsBlocked, cancellationToken);
+        if (blocked)
+        {
+            throw new InvalidOperationException("This account is paused. You cannot place an order.");
+        }
+
         var cart = await db.Carts
             .Include(c => c.Items)
             .ThenInclude(i => i.Product)

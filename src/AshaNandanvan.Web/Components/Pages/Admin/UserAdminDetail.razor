@@ -1,0 +1,242 @@
+@page "/admin/users/{UserId}"
+@attribute [Authorize(Roles = AppRoles.Admin)]
+@inject IUserAdminService People
+@inject AuthenticationStateProvider Auth
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>@( _person?.Name ?? "Person" ) — Admin</PageTitle>
+
+<section class="page-hero">
+    <div class="shell">
+        <p class="eyebrow">Admin</p>
+        <h1>@_person?.Name</h1>
+        <p><a class="text-link" href="/admin/users">Back to people</a></p>
+    </div>
+</section>
+
+<section class="shell">
+    @if (_person is null)
+    {
+        <p>@_error ?? "That person was not found."</p>
+    }
+    else
+    {
+        <div class="people-detail">
+            <article class="panel">
+                <p>@_person.Email</p>
+                <p>
+                    <span class="people-pill @(_person.SignupSource == UserSignupSource.AlbumInvite ? "people-pill--invite" : "people-pill--site")">
+                        @UserSignup.SourceLabel(_person.SignupSource)
+                    </span>
+                    <span class="people-pill @(_person.IsBlocked ? "people-pill--blocked" : "people-pill--ok")">
+                        @(_person.IsBlocked ? "Blocked" : "Active")
+                    </span>
+                </p>
+                <p>@UserSignup.ActivityLabel(_person.Activity)</p>
+                @if (_person.LaterBookedStay)
+                {
+                    <p class="muted">Arrived via an album invite, then later booked a stay.</p>
+                }
+                <p class="muted">
+                    Signed in with @( _person.SignInProviders.Count == 0 ? "—" : string.Join(" and ", _person.SignInProviders) ).
+                    Joined @When(_person.SignedUpAt).
+                </p>
+                @if (_person.LastAlbumVisit is DateTimeOffset seen)
+                {
+                    <p class="muted">Last opened an album @When(seen).</p>
+                }
+                @if (_person.IsBlocked && !string.IsNullOrWhiteSpace(_person.BlockedReason))
+                {
+                    <p>Paused note: @_person.BlockedReason</p>
+                }
+                @if (!_person.CanModerate && !string.IsNullOrWhiteSpace(_person.ModerateBlockReason))
+                {
+                    <p class="muted">@_person.ModerateBlockReason</p>
+                }
+
+                @if (_person.CanModerate)
+                {
+                    <div class="people-actions">
+                        @if (_person.IsBlocked)
+                        {
+                            <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="UnblockAsync">Unblock</button>
+                        }
+                        else
+                        {
+                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="() => _showBlock = !_showBlock">Block</button>
+                        }
+                        <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="() => _showDelete = !_showDelete">Delete</button>
+                    </div>
+
+                    @if (_showBlock && !_person.IsBlocked)
+                    {
+                        <div class="people-confirm">
+                            <p>They will not be able to sign in or place a new order. Existing stays and albums stay where they are.</p>
+                            <label>
+                                Optional note
+                                <textarea @bind="_blockReason" maxlength="200" rows="3"></textarea>
+                            </label>
+                            <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="BlockAsync">Pause this account</button>
+                        </div>
+                    }
+
+                    @if (_showDelete)
+                    {
+                        <div class="people-confirm">
+                            <p>
+                                This removes their login, basket, comments, hearts, and stay albums they own.
+                                Paid order stubs stay, without their name or email.
+                            </p>
+                            <label>
+                                Type @_person.Email to confirm
+                                <input @bind="_confirmEmail" autocomplete="off" />
+                            </label>
+                            <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="DeleteAsync">Delete this person</button>
+                        </div>
+                    }
+                }
+            </article>
+
+            <article class="panel">
+                <h2>Orders</h2>
+                @if (_person.Orders.Count == 0)
+                {
+                    <p class="muted">No orders.</p>
+                }
+                else
+                {
+                    <ul>
+                        @foreach (var order in _person.Orders)
+                        {
+                            <li>
+                                <a class="text-link" href="/admin/orders/@order.OrderNumber">@order.OrderNumber</a>
+                                — @order.StatusLabel · @CatalogFormatting.Money(order.Total)
+                                <div class="muted">@When(order.CreatedAt)</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </article>
+
+            <article class="panel">
+                <h2>Albums</h2>
+                @if (_person.Albums.Count == 0)
+                {
+                    <p class="muted">No albums.</p>
+                }
+                else
+                {
+                    <ul>
+                        @foreach (var album in _person.Albums)
+                        {
+                            <li>
+                                <a class="text-link" href="/albums/@album.Id">@album.Title</a>
+                                — @(album.Role == StayAlbumMemberRole.Owner ? "Owner" : "Guest")
+                                <div class="muted">Last seen @When(album.LastSeenAt)</div>
+                            </li>
+                        }
+                    </ul>
+                }
+            </article>
+        </div>
+    }
+</section>
+
+@code {
+    [Parameter] public string UserId { get; set; } = string.Empty;
+
+    private AshaNandanvan.Application.Users.UserAdminDetail? _person;
+    private string? _actorId;
+    private string? _error;
+    private string? _blockReason;
+    private string _confirmEmail = string.Empty;
+    private bool _showBlock;
+    private bool _showDelete;
+    private bool _busy;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        _actorId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_actorId))
+        {
+            _error = "Please sign in again.";
+            return;
+        }
+
+        try
+        {
+            _person = await People.GetAsync(_actorId, UserId);
+            _error = null;
+        }
+        catch (Exception ex)
+        {
+            _person = null;
+            _error = ex.Message;
+        }
+    }
+
+    private async Task BlockAsync()
+    {
+        await RunAsync(async () =>
+        {
+            await People.BlockAsync(_actorId!, UserId, _blockReason);
+            Snackbar.Add("Account paused.", Severity.Success);
+            _showBlock = false;
+            _blockReason = null;
+            await LoadAsync();
+        });
+    }
+
+    private async Task UnblockAsync()
+    {
+        await RunAsync(async () =>
+        {
+            await People.UnblockAsync(_actorId!, UserId);
+            Snackbar.Add("Account reopened.", Severity.Success);
+            await LoadAsync();
+        });
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (!string.Equals(_confirmEmail.Trim(), _person?.Email, StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add("Type the email address to confirm.", Severity.Warning);
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await People.DeleteAsync(_actorId!, UserId);
+            Snackbar.Add("That person has been deleted.", Severity.Success);
+            Navigation.NavigateTo("/admin/users");
+        });
+    }
+
+    private async Task RunAsync(Func<Task> work)
+    {
+        _busy = true;
+        try
+        {
+            await work();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Warning);
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
+
+    private static string When(DateTimeOffset at) =>
+        at.ToOffset(BookingPricing.SydneyOffset(at)).ToString("d MMM yyyy");
+}
