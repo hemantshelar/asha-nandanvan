@@ -1,6 +1,7 @@
 namespace AshaNandanvan.Application.Cart;
 
 public sealed record CartLine(
+    string LineKey,
     int ProductId,
     int? SlotId,
     string Name,
@@ -10,7 +11,8 @@ public sealed record CartLine(
     int Quantity,
     int Stock,
     string? ImagePath,
-    string? SlotLabel)
+    string? SlotLabel,
+    bool IsStay = false)
 {
     public decimal LineTotal => UnitPrice * Quantity;
 }

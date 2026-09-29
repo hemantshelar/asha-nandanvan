@@ -106,8 +106,35 @@ public sealed class UserAdminService : IUserAdminService
             albums.Count == 0 ? null : albums.Max(a => a.LastSeenAt),
             canModerate,
             blockReason,
+            user.AssignedStayPlanId,
+            user.AssignedStayPlanId is int planId
+                ? await _db.StayRatePlans.AsNoTracking().Where(p => p.Id == planId).Select(p => p.Name).FirstOrDefaultAsync(cancellationToken)
+                : null,
             orders.Select(o => new UserAdminOrderLink(o.OrderNumber, o.Status.DisplayName(), o.Total, o.CreatedAt)).ToList(),
             albums.Select(a => new UserAdminAlbumLink(a.AlbumId, a.Title, a.Role, a.LastSeenAt)).ToList());
+    }
+
+    public async Task AssignStayPlanAsync(
+        string actorUserId,
+        string userId,
+        int? planId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureAdminAsync(actorUserId);
+        var user = await _users.FindByIdAsync(userId)
+            ?? throw new InvalidOperationException("That person was not found.");
+        if (planId is int id)
+        {
+            var exists = await _db.StayRatePlans.AnyAsync(p => p.Id == id, cancellationToken);
+            if (!exists)
+            {
+                throw new InvalidOperationException("That stay plan was not found.");
+            }
+        }
+
+        user.AssignedStayPlanId = planId;
+        var result = await _users.UpdateAsync(user);
+        EnsureSucceeded(result, "We could not save that stay plan.");
     }
 
     public async Task BlockAsync(

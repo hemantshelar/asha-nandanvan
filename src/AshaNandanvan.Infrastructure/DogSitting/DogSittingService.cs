@@ -19,14 +19,18 @@ public sealed class DogSittingService : IDogSittingService
     {
         await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
         var settings = await EnsureSettingsAsync(db, cancellationToken);
+        await StayPlanService.EnsurePlansAsync(db, cancellationToken);
         var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Slug == ProductSlug, cancellationToken);
+        var plans = await db.StayRatePlans.AsNoTracking().OrderBy(p => p.SortOrder).ToListAsync(cancellationToken);
+        var regular = plans.FirstOrDefault(p => p.IsDefault);
         return new DogSittingSettingsModel
         {
             MaxDogs = settings.MaxDogs,
             Headline = settings.Headline,
             Description = settings.Description,
             TermsAndConditions = settings.TermsAndConditions,
-            PricePerNight = product?.Price ?? 55m
+            PricePerNight = regular?.FirstDogPerNight ?? product?.Price ?? 55m,
+            Plans = plans.Select(StayPlanService.ToView).ToList()
         };
     }
 

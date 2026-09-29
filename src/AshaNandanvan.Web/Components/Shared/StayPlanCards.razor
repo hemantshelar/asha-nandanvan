@@ -1,0 +1,39 @@
+<section class="stay-plans">
+    <p class="eyebrow">How much we charge</p>
+    <h2>How much we charge</h2>
+    <p class="lede">
+        The first dog is the backyard rate. A second or third dog in the same stay is a companion rate —
+        same care, a fairer household total.
+    </p>
+    <div class="stay-plans__grid">
+        @foreach (var plan in Plans)
+        {
+            <article class="stay-plan-card @(plan.IsDefault ? "stay-plan-card--default" : null)">
+                <p class="stay-plan-card__band">@plan.BandLabel</p>
+                <h3>@plan.Name</h3>
+                @if (plan.IsDefault)
+                {
+                    <p class="people-pill people-pill--invite">Most stays</p>
+                }
+                <p class="stay-plan-card__rates">
+                    <strong>@CatalogFormatting.Money(plan.FirstDogPerNight)</strong>
+                    <span>first dog / night</span>
+                </p>
+                <p class="stay-plan-card__rates">
+                    <strong>@CatalogFormatting.Money(plan.ExtraDogPerNight)</strong>
+                    <span>each extra dog / night</span>
+                </p>
+                <p>@plan.Tagline</p>
+                <p class="muted">@plan.Example</p>
+            </article>
+        }
+    </div>
+    <p class="muted stay-plans__note">
+        We apply the plan that matches the length of the stay. If we have already agreed a plan with you,
+        that one always wins — even for a short visit.
+    </p>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public IReadOnlyList<StayRatePlanView> Plans { get; set; } = [];
+}

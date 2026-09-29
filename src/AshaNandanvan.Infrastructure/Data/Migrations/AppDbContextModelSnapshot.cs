@@ -87,6 +87,19 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<DateTimeOffset?>("StayStartsAt")
                         .HasColumnType("datetimeoffset");
 
+                    b.Property<Guid?>("StayGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StayPlanName")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<decimal?>("StayNightlyRate")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<bool>("IsCompanionDog")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("ProductId");
@@ -95,7 +108,7 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
 
                     b.HasIndex("CartId", "ProductId")
                         .IsUnique()
-                        .HasFilter("[ProductSlotId] IS NULL");
+                        .HasFilter("[ProductSlotId] IS NULL AND [StayStartsAt] IS NULL");
 
                     b.HasIndex("CartId", "ProductId", "ProductSlotId")
                         .IsUnique()
@@ -353,6 +366,19 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<decimal>("UnitPrice")
                         .HasColumnType("decimal(10,2)");
 
+                    b.Property<Guid?>("StayGroupId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("StayPlanName")
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<decimal?>("StayNightlyRate")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<bool>("IsCompanionDog")
+                        .HasColumnType("bit");
+
                     b.HasKey("Id");
 
                     b.HasIndex("OrderId");
@@ -362,6 +388,50 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.HasIndex("ProductSlotId");
 
                     b.ToTable("OrderItems");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayRatePlan", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("nvarchar(40)");
+
+                    b.Property<decimal>("ExtraDogPerNight")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal>("FirstDogPerNight")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<bool>("IsDefault")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MaxNights")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MinNights")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("nvarchar(80)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("StayRatePlans");
                 });
 
             modelBuilder.Entity("AshaNandanvan.Domain.Entities.StayAlbum", b =>
@@ -679,6 +749,9 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                     b.Property<string>("Id")
                         .HasColumnType("nvarchar(450)");
 
+                    b.Property<int?>("AssignedStayPlanId")
+                        .HasColumnType("int");
+
                     b.Property<int>("AccessFailedCount")
                         .HasColumnType("int");
 
@@ -747,6 +820,8 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                         .HasColumnType("nvarchar(256)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("AssignedStayPlanId");
 
                     b.HasIndex("IsBlocked");
 
@@ -1012,6 +1087,14 @@ namespace AshaNandanvan.Infrastructure.Data.Migrations
                         .IsRequired();
 
                     b.Navigation("Product");
+                });
+
+            modelBuilder.Entity("AshaNandanvan.Infrastructure.Identity.ApplicationUser", b =>
+                {
+                    b.HasOne("AshaNandanvan.Domain.Entities.StayRatePlan", null)
+                        .WithMany()
+                        .HasForeignKey("AssignedStayPlanId")
+                        .OnDelete(DeleteBehavior.Restrict);
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>

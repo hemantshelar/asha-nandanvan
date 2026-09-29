@@ -11,7 +11,7 @@
         <p class="muted">@Product.Description</p>
         <div class="product-card__footer">
             <div class="product-card__meta">
-                <strong>@CatalogFormatting.Money(Product.Price)</strong>
+                <strong>@(FromPrice ? "From " : null)@CatalogFormatting.Money(Product.Price)</strong>
                 <span>/ @Product.Unit</span>
             </div>
             @if (Product.RequiresBooking)
@@ -31,6 +31,7 @@
 @code {
     [Parameter, EditorRequired] public ProductListItem Product { get; set; } = default!;
     [Parameter] public string? PetName { get; set; }
+    [Parameter] public bool FromPrice { get; set; }
 
     private string DetailHref => string.IsNullOrWhiteSpace(PetName)
         ? $"/shop/{Product.Slug}"

@@ -185,6 +185,10 @@
                                     {
                                         <div class="muted">Confirmed after trial</div>
                                     }
+                                    @if (!string.IsNullOrWhiteSpace(line.StayPlanName))
+                                    {
+                                        <div class="muted">@(line.IsCompanionDog ? "Companion" : "Lead dog") · @line.StayPlanName</div>
+                                    }
                                     @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
                                     {
                                         <div class="muted">@line.SlotLabel</div>

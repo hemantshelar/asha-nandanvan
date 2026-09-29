@@ -72,15 +72,7 @@ public sealed class OrderService : IOrderService
                     throw new InvalidOperationException("This breed needs a free trial night before the long stay.");
                 }
 
-                var availability = await _dogSitting.CheckAvailabilityAsync(
-                    item.StayStartsAt.Value,
-                    item.StayEndsAt.Value,
-                    item.Quantity,
-                    cancellationToken: cancellationToken);
-                if (!availability.CanBook)
-                {
-                    throw new InvalidOperationException(availability.Message);
-                }
+                // Capacity for the whole household is checked once per stay group below.
             }
             else if (item.Product.Category.RequiresBooking())
             {
@@ -100,6 +92,22 @@ public sealed class OrderService : IOrderService
             }
         }
 
+        foreach (var group in cart.Items
+            .Where(i => i.Product.Category == ProductCategory.DogSitting && i.StayStartsAt is not null && i.StayEndsAt is not null)
+            .GroupBy(i => i.StayGroupId ?? Guid.Empty))
+        {
+            var first = group.First();
+            var availability = await _dogSitting.CheckAvailabilityAsync(
+                first.StayStartsAt!.Value,
+                first.StayEndsAt!.Value,
+                group.Sum(i => i.Quantity),
+                cancellationToken: cancellationToken);
+            if (!availability.CanBook)
+            {
+                throw new InvalidOperationException(availability.Message);
+            }
+        }
+
         var now = DateTimeOffset.UtcNow;
         var order = new Order
         {
@@ -111,7 +119,7 @@ public sealed class OrderService : IOrderService
             PickupDate = request.PickupDate,
             PickupWindow = request.PickupWindow,
             Status = OrderStatus.Placed,
-            Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay)),
+            Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay, i.StayNightlyRate)),
             PaymentProvider = string.Empty,
             CreatedAt = now,
             UpdatedAt = now,
@@ -121,7 +129,7 @@ public sealed class OrderService : IOrderService
                 ProductName = i.Product.Name,
                 Unit = i.Product.Unit,
                 Quantity = i.Quantity,
-                UnitPrice = BookingPricing.UnitPrice(i.Product, i.ProductSlot, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay),
+                UnitPrice = BookingPricing.UnitPrice(i.Product, i.ProductSlot, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay, i.StayNightlyRate),
                 ProductSlotId = i.ProductSlotId,
                 StayStartsAt = i.StayStartsAt,
                 StayEndsAt = i.StayEndsAt,
@@ -130,6 +138,10 @@ public sealed class OrderService : IOrderService
                 IsTrialStay = i.IsTrialStay,
                 IntendedStayStartsAt = i.IntendedStayStartsAt,
                 IntendedStayEndsAt = i.IntendedStayEndsAt,
+                StayGroupId = i.StayGroupId,
+                StayPlanName = i.StayPlanName,
+                StayNightlyRate = i.StayNightlyRate,
+                IsCompanionDog = i.IsCompanionDog,
                 SlotLabel = i.StayStartsAt is not null && i.StayEndsAt is not null
                     ? BookingPricing.StayLabel(i.StayStartsAt.Value, i.StayEndsAt.Value, i.PetName, i.PetBreed, i.IsTrialStay)
                     : i.ProductSlot is null ? null : BookingPricing.SlotLabel(i.ProductSlot, i.Product.Category)
@@ -273,7 +285,8 @@ public sealed class OrderService : IOrderService
                 line.Product,
                 line.ProductSlot,
                 line.StayStartsAt,
-                line.StayEndsAt);
+                line.StayEndsAt,
+                stayNightlyRate: line.StayNightlyRate);
             line.SlotLabel = BookingPricing.StayLabel(
                 line.StayStartsAt.Value,
                 line.StayEndsAt.Value,
@@ -432,7 +445,9 @@ public sealed class OrderService : IOrderService
                 i.IsTrialStay,
                 i.StayEndsAt,
                 i.IntendedStayStartsAt,
-                i.IntendedStayEndsAt)).ToList(),
+                i.IntendedStayEndsAt,
+                i.StayPlanName,
+                i.IsCompanionDog)).ToList(),
             order.PaymentReference,
             order.PaymentProvider,
             order.Album?.Id);

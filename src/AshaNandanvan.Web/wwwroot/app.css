@@ -782,6 +782,67 @@ input, select, textarea {
     border-radius: 18px;
     padding: 1.1rem 1.2rem 1.2rem;
 }
+.stay-plan-chip {
+    margin: 0.75rem 0 1rem;
+    padding: 0.7rem 0.85rem;
+    border-radius: 12px;
+    background: #1b2319;
+    color: var(--lime);
+    font-weight: 700;
+    line-height: 1.45;
+}
+.stay-dog-card {
+    margin: 0.85rem 0;
+    padding: 0.85rem 0.9rem;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+}
+.stay-dog-card__head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.55rem 1rem;
+    margin-bottom: 0.65rem;
+}
+.stay-plans { margin: 2.8rem 0 1.5rem; }
+.stay-plans h2 { margin: 0.2rem 0 0.7rem; }
+.stay-plans__grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem;
+    margin: 1.2rem 0 1rem;
+}
+.stay-plan-card {
+    background: var(--panel);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 18px;
+    padding: 1.15rem 1.2rem 1.2rem;
+}
+.stay-plan-card--default { border-color: rgba(182, 227, 74, 0.45); }
+.stay-plan-card h3 { margin: 0.25rem 0 0.55rem; }
+.stay-plan-card p { color: var(--muted); line-height: 1.55; margin: 0 0 0.65rem; }
+.stay-plan-card__band {
+    color: var(--lime);
+    font-size: 0.72rem;
+    font-weight: 800;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    margin: 0 0 0.2rem;
+}
+.stay-plan-card__rates {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0.4rem;
+    color: var(--text) !important;
+    margin: 0 0 0.35rem !important;
+}
+.stay-plan-card__rates strong { color: var(--lime); font-size: 1.25rem; }
+.stay-plans__note { max-width: 46rem; }
+
+@media (min-width: 900px) {
+    .stay-plans__grid { grid-template-columns: repeat(4, 1fr); }
+}
 .stay-book__photo {
     width: 100%;
     height: 14.5rem;

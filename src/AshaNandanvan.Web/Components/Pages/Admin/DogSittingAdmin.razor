@@ -1,6 +1,7 @@
 @page "/admin/dog-sitting"
 @attribute [Authorize(Roles = AppRoles.Admin)]
 @inject IDogSittingService DogSitting
+@inject IStayPlanService StayPlans
 @inject ISnackbar Snackbar
 
 <PageTitle>Dog sitting — Admin</PageTitle>
@@ -9,7 +10,7 @@
     <div class="shell">
         <p class="eyebrow">Admin</p>
         <h1>Dog sitting</h1>
-        <p class="lede">Capacity, public copy, and terms. Visitors pick their own drop-off and pick-up.</p>
+        <p class="lede">Capacity, companion plans, public copy, and terms. Visitors pick their own drop-off and pick-up.</p>
     </div>
 </section>
 
@@ -19,10 +20,31 @@
             Maximum dogs at one time
             <input type="number" min="1" max="50" @bind="_model.MaxDogs" required />
         </label>
-        <label>
-            Price per night (AUD)
-            <input type="number" step="0.01" min="0" @bind="_model.PricePerNight" required />
-        </label>
+        <h2>Companion plans</h2>
+        <p class="muted">First dog and extra-dog nightly rates. Night bands only apply when a person has no pinned plan.</p>
+        <div class="table-scroll">
+            <table class="cart-table">
+                <thead>
+                    <tr>
+                        <th>Plan</th>
+                        <th>Nights</th>
+                        <th>First dog</th>
+                        <th>Each extra dog</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var plan in _plans)
+                    {
+                        <tr>
+                            <td>@plan.Name @(plan.IsDefault ? "(default)" : "")</td>
+                            <td>@plan.Band</td>
+                            <td><input type="number" step="0.01" min="0" @bind="plan.FirstDogPerNight" required /></td>
+                            <td><input type="number" step="0.01" min="0" @bind="plan.ExtraDogPerNight" required /></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
         <label>
             Headline
             <input @bind="_model.Headline" required />
@@ -41,11 +63,33 @@
 
 @code {
     private DogSittingSettingsModel _model = new();
+    private List<PlanRow> _plans = [];
     private bool _busy;
+
+    private sealed class PlanRow
+    {
+        public int Id { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Band { get; set; } = string.Empty;
+        public bool IsDefault { get; set; }
+        public decimal FirstDogPerNight { get; set; }
+        public decimal ExtraDogPerNight { get; set; }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         _model = await DogSitting.GetSettingsAsync();
+        _plans = (await StayPlans.ListAsync())
+            .Select(p => new PlanRow
+            {
+                Id = p.Id,
+                Name = p.Name,
+                Band = p.BandLabel,
+                IsDefault = p.IsDefault,
+                FirstDogPerNight = p.FirstDogPerNight,
+                ExtraDogPerNight = p.ExtraDogPerNight
+            })
+            .ToList();
     }
 
     private async Task SaveAsync()
@@ -53,7 +97,14 @@
         _busy = true;
         try
         {
+            var regular = _plans.FirstOrDefault(p => p.IsDefault);
+            if (regular is not null)
+            {
+                _model.PricePerNight = regular.FirstDogPerNight;
+            }
+
             await DogSitting.SaveSettingsAsync(_model);
+            await StayPlans.SaveRatesAsync(_plans.Select(p => new StayRatePlanEdit(p.Id, p.FirstDogPerNight, p.ExtraDogPerNight)).ToList());
             Snackbar.Add("Dog sitting settings saved.", Severity.Success);
         }
         catch (Exception ex)

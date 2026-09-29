@@ -26,6 +26,7 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StayAlbumMember> StayAlbumMembers => Set<StayAlbumMember>();
     public DbSet<StayAlbumReaction> StayAlbumReactions => Set<StayAlbumReaction>();
     public DbSet<YouTubeChannelLink> YouTubeChannelLinks => Set<YouTubeChannelLink>();
+    public DbSet<StayRatePlan> StayRatePlans => Set<StayRatePlan>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -64,7 +65,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         {
             entity.HasIndex(i => new { i.CartId, i.ProductId })
                 .IsUnique()
-                .HasFilter("[ProductSlotId] IS NULL");
+                .HasFilter("[ProductSlotId] IS NULL AND [StayStartsAt] IS NULL");
+            entity.Property(i => i.StayPlanName).HasMaxLength(80);
+            entity.Property(i => i.StayNightlyRate).HasColumnType("decimal(10,2)");
             entity.HasIndex(i => new { i.CartId, i.ProductId, i.ProductSlotId })
                 .IsUnique()
                 .HasFilter("[ProductSlotId] IS NOT NULL");
@@ -105,6 +108,17 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(i => i.PetName).HasMaxLength(80);
             entity.Property(i => i.PetBreed).HasMaxLength(80);
             entity.Property(i => i.IsTrialStay).IsRequired();
+            entity.Property(i => i.StayPlanName).HasMaxLength(80);
+            entity.Property(i => i.StayNightlyRate).HasColumnType("decimal(10,2)");
+        });
+
+        builder.Entity<StayRatePlan>(entity =>
+        {
+            entity.Property(p => p.Code).HasMaxLength(40).IsRequired();
+            entity.Property(p => p.Name).HasMaxLength(80).IsRequired();
+            entity.Property(p => p.FirstDogPerNight).HasColumnType("decimal(10,2)");
+            entity.Property(p => p.ExtraDogPerNight).HasColumnType("decimal(10,2)");
+            entity.HasIndex(p => p.Code).IsUnique();
         });
 
         builder.Entity<DogSittingSettings>(entity =>
@@ -203,6 +217,10 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(u => u.BlockedReason).HasMaxLength(200);
             entity.HasIndex(u => u.IsBlocked);
             entity.HasIndex(u => u.SignupSource);
+            entity.HasOne<StayRatePlan>()
+                .WithMany()
+                .HasForeignKey(u => u.AssignedStayPlanId)
+                .OnDelete(DeleteBehavior.Restrict);
         });
     }
 }

@@ -27,4 +27,10 @@ public interface IUserAdminService
         string actorUserId,
         string userId,
         CancellationToken cancellationToken = default);
+
+    Task AssignStayPlanAsync(
+        string actorUserId,
+        string userId,
+        int? planId,
+        CancellationToken cancellationToken = default);
 }

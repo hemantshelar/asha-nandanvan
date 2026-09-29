@@ -21,4 +21,8 @@ public class OrderItem
     public DateTimeOffset? IntendedStayStartsAt { get; set; }
     public DateTimeOffset? IntendedStayEndsAt { get; set; }
     public string? SlotLabel { get; set; }
+    public Guid? StayGroupId { get; set; }
+    public string? StayPlanName { get; set; }
+    public decimal? StayNightlyRate { get; set; }
+    public bool IsCompanionDog { get; set; }
 }

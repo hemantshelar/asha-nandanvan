@@ -13,7 +13,14 @@ public static class BookingPricing
 
     public static int NightCount(ProductSlot slot) => NightCount(slot.StartsAt, slot.EndsAt);
 
-    public static decimal LineTotal(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, bool trialStay = false)
+    public static decimal LineTotal(
+        Product product,
+        ProductSlot? slot,
+        int quantity,
+        DateTimeOffset? stayStart = null,
+        DateTimeOffset? stayEnd = null,
+        bool trialStay = false,
+        decimal? stayNightlyRate = null)
     {
         if (trialStay)
         {
@@ -22,7 +29,8 @@ public static class BookingPricing
 
         if (product.Category == ProductCategory.DogSitting && stayStart is not null && stayEnd is not null)
         {
-            return product.Price * NightCount(stayStart.Value, stayEnd.Value) * quantity;
+            var nightly = stayNightlyRate ?? product.Price;
+            return nightly * NightCount(stayStart.Value, stayEnd.Value) * quantity;
         }
 
         if (product.Category == ProductCategory.DogSitting && slot is not null)
@@ -33,7 +41,13 @@ public static class BookingPricing
         return product.Price * quantity;
     }
 
-    public static decimal UnitPrice(Product product, ProductSlot? slot, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, bool trialStay = false)
+    public static decimal UnitPrice(
+        Product product,
+        ProductSlot? slot,
+        DateTimeOffset? stayStart = null,
+        DateTimeOffset? stayEnd = null,
+        bool trialStay = false,
+        decimal? stayNightlyRate = null)
     {
         if (trialStay)
         {
@@ -42,7 +56,8 @@ public static class BookingPricing
 
         if (product.Category == ProductCategory.DogSitting && stayStart is not null && stayEnd is not null)
         {
-            return product.Price * NightCount(stayStart.Value, stayEnd.Value);
+            var nightly = stayNightlyRate ?? product.Price;
+            return nightly * NightCount(stayStart.Value, stayEnd.Value);
         }
 
         return product.Category == ProductCategory.DogSitting && slot is not null

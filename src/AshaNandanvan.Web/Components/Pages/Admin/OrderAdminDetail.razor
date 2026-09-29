@@ -46,6 +46,10 @@
                             {
                                 <text> (@line.SlotLabel)</text>
                             }
+                            @if (!string.IsNullOrWhiteSpace(line.StayPlanName))
+                            {
+                                <div class="muted">@(line.IsCompanionDog ? "Companion" : "Lead dog") · @line.StayPlanName</div>
+                            }
                             @if (line.IsTrialStay && line.IntendedStayStartsAt is not null && line.IntendedStayEndsAt is not null)
                             {
                                 <div class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</div>

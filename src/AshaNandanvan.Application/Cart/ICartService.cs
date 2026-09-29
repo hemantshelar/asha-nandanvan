@@ -1,3 +1,5 @@
+using AshaNandanvan.Application.DogSitting;
+
 namespace AshaNandanvan.Application.Cart;
 
 public interface ICartService
@@ -16,8 +18,18 @@ public interface ICartService
         DateTimeOffset? intendedStayStart = null,
         DateTimeOffset? intendedStayEnd = null,
         CancellationToken cancellationToken = default);
+    Task AddStayPartyAsync(
+        int productId,
+        DateTimeOffset stayStart,
+        DateTimeOffset stayEnd,
+        IReadOnlyList<StayDogDraft> dogs,
+        bool trialStay = false,
+        DateTimeOffset? intendedStayStart = null,
+        DateTimeOffset? intendedStayEnd = null,
+        CancellationToken cancellationToken = default);
     Task UpdateQuantityAsync(int productId, int quantity, int? slotId = null, CancellationToken cancellationToken = default);
     Task RemoveAsync(int productId, int? slotId = null, CancellationToken cancellationToken = default);
+    Task RemoveLineAsync(string lineKey, CancellationToken cancellationToken = default);
     Task ClearAsync(CancellationToken cancellationToken = default);
     Task MergeGuestCartAsync(CancellationToken cancellationToken = default);
 }

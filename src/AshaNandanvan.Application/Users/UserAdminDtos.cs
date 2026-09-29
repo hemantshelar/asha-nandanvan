@@ -61,5 +61,7 @@ public sealed record UserAdminDetail(
     DateTimeOffset? LastAlbumVisit,
     bool CanModerate,
     string? ModerateBlockReason,
+    int? AssignedStayPlanId,
+    string? AssignedStayPlanName,
     IReadOnlyList<UserAdminOrderLink> Orders,
     IReadOnlyList<UserAdminAlbumLink> Albums);

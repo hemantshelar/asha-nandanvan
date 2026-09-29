@@ -16,6 +16,7 @@ public sealed class CartService : ICartService
     private const string StorageKey = "asha.cart";
     private readonly IDbContextFactory<AppDbContext> _dbFactory;
     private readonly IDogSittingService _dogSitting;
+    private readonly IStayPlanService _plans;
     private readonly IDogBreedService _breeds;
     private readonly AuthenticationStateProvider _authenticationStateProvider;
     private readonly ProtectedLocalStorage _localStorage;
@@ -24,12 +25,14 @@ public sealed class CartService : ICartService
     public CartService(
         IDbContextFactory<AppDbContext> dbFactory,
         IDogSittingService dogSitting,
+        IStayPlanService plans,
         IDogBreedService breeds,
         AuthenticationStateProvider authenticationStateProvider,
         ProtectedLocalStorage localStorage)
     {
         _dbFactory = dbFactory;
         _dogSitting = dogSitting;
+        _plans = plans;
         _breeds = breeds;
         _authenticationStateProvider = authenticationStateProvider;
         _localStorage = localStorage;
@@ -227,6 +230,152 @@ public sealed class CartService : ICartService
         Changed?.Invoke();
     }
 
+    public async Task AddStayPartyAsync(
+        int productId,
+        DateTimeOffset stayStart,
+        DateTimeOffset stayEnd,
+        IReadOnlyList<StayDogDraft> dogs,
+        bool trialStay = false,
+        DateTimeOffset? intendedStayStart = null,
+        DateTimeOffset? intendedStayEnd = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (dogs.Count == 0)
+        {
+            throw new InvalidOperationException("Add at least one dog.");
+        }
+
+        var party = new List<StayDogDraft>();
+        foreach (var dog in dogs)
+        {
+            if (string.IsNullOrWhiteSpace(dog.Name) || string.IsNullOrWhiteSpace(dog.Breed))
+            {
+                throw new InvalidOperationException("Every dog needs a name and a breed.");
+            }
+
+            party.Add(new StayDogDraft(dog.Name.Trim(), dog.Breed.Trim()));
+        }
+
+        if (trialStay && party.Count > 1)
+        {
+            throw new InvalidOperationException("A trial night is one dog only.");
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+            var product = await db.Products.AsNoTracking().FirstOrDefaultAsync(p => p.Id == productId && p.IsActive, cancellationToken)
+                ?? throw new InvalidOperationException("That product is not available.");
+            if (product.Category != ProductCategory.DogSitting)
+            {
+                throw new InvalidOperationException("That is not a backyard stay.");
+            }
+
+            foreach (var dog in party)
+            {
+                if (await _breeds.RequiresTrialAsync(dog.Breed, cancellationToken) && !trialStay)
+                {
+                    throw new InvalidOperationException($"{dog.Name} needs a free trial night before a long stay. Book that trial on its own first.");
+                }
+            }
+
+            if (trialStay)
+            {
+                stayEnd = stayStart.AddDays(1);
+                if (intendedStayStart is null || intendedStayEnd is null)
+                {
+                    throw new InvalidOperationException("Choose the original stay dates for the trial booking.");
+                }
+
+                if (intendedStayEnd <= intendedStayStart)
+                {
+                    throw new InvalidOperationException("Pick-up must be after drop-off.");
+                }
+
+                var latestTrial = intendedStayStart.Value.AddDays(-DogBreedCatalog.TrialLeadDays);
+                if (stayStart > latestTrial)
+                {
+                    throw new InvalidOperationException("The trial night must be at least two days before drop-off.");
+                }
+            }
+
+            var userId = await GetUserIdAsync();
+            var quote = await _plans.QuoteAsync(userId, stayStart, stayEnd, party.Count, trialStay, cancellationToken);
+            var availability = await _dogSitting.CheckAvailabilityAsync(stayStart, stayEnd, party.Count, cancellationToken: cancellationToken);
+            if (!availability.CanBook)
+            {
+                throw new InvalidOperationException(availability.Message);
+            }
+
+            var groupId = Guid.NewGuid();
+            if (userId is not null)
+            {
+                var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+                foreach (var existing in cart.Items.Where(i => i.ProductId == productId && i.StayStartsAt != null).ToList())
+                {
+                    cart.Items.Remove(existing);
+                }
+
+                for (var i = 0; i < party.Count; i++)
+                {
+                    var companion = i > 0;
+                    cart.Items.Add(new CartItem
+                    {
+                        ProductId = productId,
+                        StayStartsAt = stayStart,
+                        StayEndsAt = stayEnd,
+                        PetName = party[i].Name,
+                        PetBreed = party[i].Breed,
+                        IsTrialStay = trialStay,
+                        IntendedStayStartsAt = intendedStayStart,
+                        IntendedStayEndsAt = intendedStayEnd,
+                        StayGroupId = groupId,
+                        StayPlanName = quote.Plan.Name,
+                        StayNightlyRate = quote.NightlyFor(companion),
+                        IsCompanionDog = companion,
+                        Quantity = 1
+                    });
+                }
+
+                cart.UpdatedAt = DateTimeOffset.UtcNow;
+                await db.SaveChangesAsync(cancellationToken);
+            }
+            else
+            {
+                var lines = (await ReadGuestLinesAsync()).Where(l => l.StayStart is null || l.ProductId != productId).ToList();
+                for (var i = 0; i < party.Count; i++)
+                {
+                    var companion = i > 0;
+                    lines.Add(new GuestLine(
+                        productId,
+                        1,
+                        null,
+                        stayStart,
+                        stayEnd,
+                        party[i].Name,
+                        party[i].Breed,
+                        trialStay,
+                        intendedStayStart,
+                        intendedStayEnd,
+                        Guid.NewGuid().ToString("N"),
+                        groupId,
+                        quote.Plan.Name,
+                        quote.NightlyFor(companion),
+                        companion));
+                }
+
+                await WriteGuestLinesAsync(lines);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Changed?.Invoke();
+    }
+
     public async Task UpdateQuantityAsync(int productId, int quantity, int? slotId = null, CancellationToken cancellationToken = default)
     {
         if (quantity <= 0)
@@ -291,6 +440,43 @@ public sealed class CartService : ICartService
             else
             {
                 var lines = (await ReadGuestLinesAsync()).Where(l => !SameLine(l, productId, slotId)).ToList();
+                await WriteGuestLinesAsync(lines);
+            }
+        }
+        finally
+        {
+            _gate.Release();
+        }
+
+        Changed?.Invoke();
+    }
+
+    public async Task RemoveLineAsync(string lineKey, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(lineKey))
+        {
+            return;
+        }
+
+        await _gate.WaitAsync(cancellationToken);
+        try
+        {
+            var userId = await GetUserIdAsync();
+            if (userId is not null && int.TryParse(lineKey, out var itemId))
+            {
+                await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+                var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+                var item = cart.Items.FirstOrDefault(i => i.Id == itemId);
+                if (item is not null)
+                {
+                    cart.Items.Remove(item);
+                    cart.UpdatedAt = DateTimeOffset.UtcNow;
+                    await db.SaveChangesAsync(cancellationToken);
+                }
+            }
+            else
+            {
+                var lines = (await ReadGuestLinesAsync()).Where(l => l.Key != lineKey).ToList();
                 await WriteGuestLinesAsync(lines);
             }
         }
@@ -369,9 +555,19 @@ public sealed class CartService : ICartService
         }
 
         var cart = await GetOrCreateDbCartAsync(db, userId, cancellationToken);
+        if (guestLines.Any(l => l.StayStart is not null))
+        {
+            foreach (var leftover in cart.Items.Where(i => i.StayStartsAt != null).ToList())
+            {
+                cart.Items.Remove(leftover);
+            }
+        }
+
         foreach (var line in guestLines)
         {
-            var existing = cart.Items.FirstOrDefault(i => SameLine(i, line.ProductId, line.SlotId));
+            var existing = line.StayStart is not null
+                ? null
+                : cart.Items.FirstOrDefault(i => SameLine(i, line.ProductId, line.SlotId));
             if (existing is null)
             {
                 cart.Items.Add(new CartItem
@@ -385,6 +581,10 @@ public sealed class CartService : ICartService
                     IsTrialStay = line.IsTrialStay,
                     IntendedStayStartsAt = line.IntendedStayStart,
                     IntendedStayEndsAt = line.IntendedStayEnd,
+                    StayGroupId = line.StayGroupId,
+                    StayPlanName = line.StayPlanName,
+                    StayNightlyRate = line.StayNightlyRate,
+                    IsCompanionDog = line.IsCompanionDog,
                     Quantity = line.Quantity
                 });
             }
@@ -462,7 +662,17 @@ public sealed class CartService : ICartService
                 }
 
                 var slot = l.SlotId is null ? null : slots.FirstOrDefault(s => s.Id == l.SlotId);
-                return ToLine(product, slot, l.Quantity, l.StayStart, l.StayEnd, l.PetName, l.PetBreed, l.IsTrialStay);
+                return ToLine(
+                    string.IsNullOrWhiteSpace(l.Key) ? $"{l.ProductId}-{l.PetName}" : l.Key,
+                    product,
+                    slot,
+                    l.Quantity,
+                    l.StayStart,
+                    l.StayEnd,
+                    l.PetName,
+                    l.PetBreed,
+                    l.IsTrialStay,
+                    l.StayNightlyRate);
             })
             .Where(l => l is not null)
             .Select(l => l!)
@@ -472,25 +682,47 @@ public sealed class CartService : ICartService
     }
 
     private static CartLine ToLine(CartItem item) =>
-        ToLine(item.Product, item.ProductSlot, item.Quantity, item.StayStartsAt, item.StayEndsAt, item.PetName, item.PetBreed, item.IsTrialStay);
+        ToLine(
+            item.Id.ToString(),
+            item.Product,
+            item.ProductSlot,
+            item.Quantity,
+            item.StayStartsAt,
+            item.StayEndsAt,
+            item.PetName,
+            item.PetBreed,
+            item.IsTrialStay,
+            item.StayNightlyRate);
 
-    private static CartLine ToLine(Product product, ProductSlot? slot, int quantity, DateTimeOffset? stayStart = null, DateTimeOffset? stayEnd = null, string? petName = null, string? petBreed = null, bool trialStay = false)
+    private static CartLine ToLine(
+        string lineKey,
+        Product product,
+        ProductSlot? slot,
+        int quantity,
+        DateTimeOffset? stayStart = null,
+        DateTimeOffset? stayEnd = null,
+        string? petName = null,
+        string? petBreed = null,
+        bool trialStay = false,
+        decimal? stayNightlyRate = null)
     {
         var label = stayStart is not null && stayEnd is not null
             ? BookingPricing.StayLabel(stayStart.Value, stayEnd.Value, petName, petBreed, trialStay)
             : slot is null ? null : BookingPricing.SlotLabel(slot, product.Category);
 
         return new(
+            lineKey,
             product.Id,
             slot?.Id,
             product.Name,
             product.Slug,
             product.Unit,
-            BookingPricing.UnitPrice(product, slot, stayStart, stayEnd, trialStay),
+            BookingPricing.UnitPrice(product, slot, stayStart, stayEnd, trialStay, stayNightlyRate),
             quantity,
             slot?.Remaining ?? product.Stock,
             product.ImagePath,
-            label);
+            label,
+            stayStart is not null);
     }
 
     private static async Task<Cart> GetOrCreateDbCartAsync(AppDbContext db, string userId, CancellationToken cancellationToken)
@@ -570,5 +802,10 @@ public sealed class CartService : ICartService
         string? PetBreed = null,
         bool IsTrialStay = false,
         DateTimeOffset? IntendedStayStart = null,
-        DateTimeOffset? IntendedStayEnd = null);
+        DateTimeOffset? IntendedStayEnd = null,
+        string Key = "",
+        Guid? StayGroupId = null,
+        string? StayPlanName = null,
+        decimal? StayNightlyRate = null,
+        bool IsCompanionDog = false);
 }

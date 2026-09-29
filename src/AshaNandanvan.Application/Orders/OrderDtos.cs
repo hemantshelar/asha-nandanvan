@@ -76,4 +76,6 @@ public sealed record OrderLineSummary(
     bool IsTrialStay = false,
     DateTimeOffset? StayEndsAt = null,
     DateTimeOffset? IntendedStayStartsAt = null,
-    DateTimeOffset? IntendedStayEndsAt = null);
+    DateTimeOffset? IntendedStayEndsAt = null,
+    string? StayPlanName = null,
+    bool IsCompanionDog = false);

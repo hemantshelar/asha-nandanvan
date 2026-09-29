@@ -120,7 +120,7 @@ public sealed class DatabaseSeeder
             {
                 Name = "Backyard dog sit",
                 Slug = "backyard-dog-sit",
-                Description = "Your dog stays with us in the Sydney backyard — hens, garden, and a quiet run. One dog per stay. Choose an open window, then we confirm drop-off after payment.",
+                Description = "Your dogs stay with us in the Sydney backyard — hens, garden, and a quiet run. Book one dog or a household. Choose an open window, then we confirm drop-off after payment.",
                 Category = ProductCategory.DogSitting,
                 Price = 55.00m,
                 Stock = 0,
@@ -188,6 +188,7 @@ public sealed class DatabaseSeeder
         }
 
         await SeedBreedsAsync(now, cancellationToken);
+        await StayPlanService.EnsurePlansAsync(_db, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
     }
 

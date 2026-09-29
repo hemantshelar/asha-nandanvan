@@ -7,6 +7,7 @@ public sealed record DogSittingSettingsModel
     public string Description { get; set; } = string.Empty;
     public string TermsAndConditions { get; set; } = string.Empty;
     public decimal PricePerNight { get; set; }
+    public IReadOnlyList<StayRatePlanView> Plans { get; set; } = [];
 }
 
 public sealed record StayAvailability(

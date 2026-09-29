@@ -1,8 +1,10 @@
 @page "/shop/{Slug}"
 @inject IProductService Products
 @inject IDogSittingService DogSitting
+@inject IStayPlanService StayPlans
 @inject IDogBreedService Breeds
 @inject ICartService Cart
+@inject AuthenticationStateProvider Auth
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
@@ -29,12 +31,8 @@ else
                 <DogStayWelcome />
                 <div class="stay-book__card">
                     <img class="stay-book__photo" src="@_product.ImagePath" alt="@_product.Name" />
-                    <p class="price">@CatalogFormatting.Money(_product.Price) <span>/ @_product.Unit</span></p>
+                    <p class="price">From @CatalogFormatting.Money(_product.Price) <span>/ @_product.Unit</span></p>
                     <div class="stay-book__fields">
-                        <label>
-                            Dog's name
-                            <input @bind="_petName" maxlength="40" autocomplete="off" placeholder="e.g. Zeke" required />
-                        </label>
                         <label>
                             Drop-off
                             <input type="datetime-local" @bind="_dropOffLocal" @bind:after="OnDropOffChangedAsync" min="@_minLocal" />
@@ -46,36 +44,65 @@ else
                                    @onchange="OnPickUpChangedAsync"
                                    min="@PickUpMinLocal" />
                         </label>
-                        <label>
-                            Breed
-                            <select @bind="_breedChoice" @bind:after="CheckStayAsync" required>
-                                <option value="">Choose a breed</option>
-                                @foreach (var breed in _breeds)
-                                {
-                                    <option value="@breed.Name">@breed.Name</option>
-                                }
-                                <option value="@OtherBreed">Other / not listed</option>
-                            </select>
-                        </label>
-                        @if (_breedChoice == OtherBreed)
-                        {
-                            <label class="stay-book__fields-span">
-                                Breed not listed
-                                <input @bind="_customBreed" @bind:after="CheckStayAsync" maxlength="80" autocomplete="off" placeholder="Type the breed" required />
-                            </label>
-                        }
-                        @if (NeedsTrialBooking)
-                        {
-                            <label class="stay-book__fields-span">
-                                Trial night
-                                <input type="datetime-local"
-                                       value="@FormatLocal(_trialLocal)"
-                                       @onchange="OnTrialChangedAsync"
-                                       min="@_minLocal"
-                                       max="@TrialMaxLocal" />
-                            </label>
-                        }
                     </div>
+                    @if (_quote is not null && _stayError is null)
+                    {
+                        <p class="stay-plan-chip">@_quote.Chip</p>
+                    }
+                    @for (var i = 0; i < _dogs.Count; i++)
+                    {
+                        var index = i;
+                        var dog = _dogs[index];
+                        <article class="stay-dog-card">
+                            <div class="stay-dog-card__head">
+                                <strong>@(index == 0 ? "Lead dog" : "Companion")</strong>
+                                @if (index > 0)
+                                {
+                                    <span class="muted">@CatalogFormatting.Money(_quote?.ExtraNightly ?? 0) / night on this plan</span>
+                                    <button type="button" class="text-link" @onclick="() => RemoveDog(index)">Remove</button>
+                                }
+                            </div>
+                            <div class="stay-book__fields">
+                                <label>
+                                    Dog's name
+                                    <input @bind="dog.Name" maxlength="40" autocomplete="off" placeholder="e.g. Zeke" required />
+                                </label>
+                                <label>
+                                    Breed
+                                    <select @bind="dog.BreedChoice" @bind:after="CheckStayAsync" required>
+                                        <option value="">Choose a breed</option>
+                                        @foreach (var breed in _breeds)
+                                        {
+                                            <option value="@breed.Name">@breed.Name</option>
+                                        }
+                                        <option value="@OtherBreed">Other / not listed</option>
+                                    </select>
+                                </label>
+                                @if (dog.BreedChoice == OtherBreed)
+                                {
+                                    <label class="stay-book__fields-span">
+                                        Breed not listed
+                                        <input @bind="dog.CustomBreed" @bind:after="CheckStayAsync" maxlength="80" autocomplete="off" placeholder="Type the breed" required />
+                                    </label>
+                                }
+                            </div>
+                        </article>
+                    }
+                    @if (CanAddDog)
+                    {
+                        <p><button type="button" class="text-link" @onclick="AddDog">Add another dog</button></p>
+                    }
+                    @if (NeedsTrialBooking)
+                    {
+                        <label>
+                            Trial night
+                            <input type="datetime-local"
+                                   value="@FormatLocal(_trialLocal)"
+                                   @onchange="OnTrialChangedAsync"
+                                   min="@_minLocal"
+                                   max="@TrialMaxLocal" />
+                        </label>
+                    }
                     <div class="stay-book__notes">
                     @if (BreedNotOffered)
                     {
@@ -103,9 +130,13 @@ else
                             {
                                 <text>Free trial night @_trialLocal?.ToString("ddd d MMM, h:mm tt") · @CatalogFormatting.Money(0). Then the long stay from @_dropOffLocal.ToString("ddd d MMM") if we both want to continue.</text>
                             }
+                            else if (_quote is not null)
+                            {
+                                <text>Estimated stay: @_quote.Nights night@(_quote.Nights == 1 ? "" : "s") for @_quote.DogCount dog@(_quote.DogCount == 1 ? "" : "s") · @CatalogFormatting.Money(_quote.Total)</text>
+                            }
                             else
                             {
-                                <text>Estimated stay: @_nights night@(_nights == 1 ? "" : "s") · @CatalogFormatting.Money(_product.Price * _nights)</text>
+                                <text>Estimated stay: @_nights night@(_nights == 1 ? "" : "s")</text>
                             }
                         </p>
                     }
@@ -208,28 +239,36 @@ else
     private StayAvailability? _availability;
     private string? _stayError;
     private bool _acceptedTerms;
-    private string _petName = string.Empty;
+    private readonly List<DogForm> _dogs = [new()];
     private IReadOnlyList<DogBreedOption> _breeds = [];
-    private string _breedChoice = string.Empty;
-    private string _customBreed = string.Empty;
+    private StayPlanQuote? _quote;
+    private string? _userId;
     private const string OtherBreed = "__other__";
 
-    private string? ChosenBreed =>
-        _breedChoice == OtherBreed ? _customBreed.Trim() : _breedChoice.Trim();
-
-    private bool BreedNotOffered
+    private sealed class DogForm
     {
-        get
+        public string Name { get; set; } = string.Empty;
+        public string BreedChoice { get; set; } = string.Empty;
+        public string CustomBreed { get; set; } = string.Empty;
+
+        public string? ChosenBreed =>
+            BreedChoice == OtherBreed ? CustomBreed.Trim() : BreedChoice.Trim();
+    }
+
+    private string? ChosenBreed => _dogs[0].ChosenBreed;
+
+    private bool BreedNotOffered =>
+        _dogs.Any(dog =>
         {
-            if (string.IsNullOrWhiteSpace(ChosenBreed))
+            var breed = dog.ChosenBreed;
+            if (string.IsNullOrWhiteSpace(breed))
             {
                 return false;
             }
 
-            var listed = _breeds.FirstOrDefault(b => b.Name.Equals(ChosenBreed, StringComparison.OrdinalIgnoreCase));
-            return listed is not null ? !listed.OffersSitting : !DogBreedCatalog.OffersSitting(ChosenBreed);
-        }
-    }
+            var listed = _breeds.FirstOrDefault(b => b.Name.Equals(breed, StringComparison.OrdinalIgnoreCase));
+            return listed is not null ? !listed.OffersSitting : !DogBreedCatalog.OffersSitting(breed);
+        });
 
     private bool BreedNeedsTrial
     {
@@ -245,7 +284,32 @@ else
         }
     }
 
-    private bool NeedsTrialBooking => BreedNeedsTrial;
+    private bool AnyDogNeedsTrial =>
+        _dogs.Any(dog =>
+        {
+            var breed = dog.ChosenBreed;
+            if (string.IsNullOrWhiteSpace(breed))
+            {
+                return false;
+            }
+
+            var listed = _breeds.FirstOrDefault(b => b.Name.Equals(breed, StringComparison.OrdinalIgnoreCase));
+            var offered = listed is not null ? listed.OffersSitting : DogBreedCatalog.OffersSitting(breed);
+            if (!offered)
+            {
+                return false;
+            }
+
+            return listed is not null ? listed.IsLargeBreed : DogBreedCatalog.NeedsTrial(breed);
+        });
+
+    private bool NeedsTrialBooking => _dogs.Count == 1 && BreedNeedsTrial;
+
+    private bool CanAddDog =>
+        !NeedsTrialBooking
+        && !AnyDogNeedsTrial
+        && _dogs.Count < (_settings?.MaxDogs ?? 5)
+        && (_availability is null || _dogs.Count < Math.Max(1, _availability.Remaining));
 
     private DateTime TrialLatest => _dropOffLocal.AddDays(-DogBreedCatalog.TrialLeadDays);
 
@@ -280,9 +344,9 @@ else
         _availability?.CanBook == true
         && _acceptedTerms
         && _stayError is null
-        && !string.IsNullOrWhiteSpace(_petName)
-        && !string.IsNullOrWhiteSpace(ChosenBreed)
+        && _dogs.All(d => !string.IsNullOrWhiteSpace(d.Name) && !string.IsNullOrWhiteSpace(d.ChosenBreed))
         && !BreedNotOffered
+        && !(_dogs.Count > 1 && AnyDogNeedsTrial)
         && PickUpValid
         && (!NeedsTrialBooking || TrialDateValid);
 
@@ -297,13 +361,15 @@ else
 
         if (_product.Category == ProductCategory.DogSitting)
         {
+            var state = await Auth.GetAuthenticationStateAsync();
+            _userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
             _settings = await DogSitting.GetSettingsAsync();
             _breeds = await Breeds.ListApprovedAsync();
             var query = Microsoft.AspNetCore.WebUtilities.QueryHelpers.ParseQuery(
                 Navigation.ToAbsoluteUri(Navigation.Uri).Query);
-            if (query.TryGetValue("pet", out var pet) && !string.IsNullOrWhiteSpace(pet) && string.IsNullOrWhiteSpace(_petName))
+            if (query.TryGetValue("pet", out var pet) && !string.IsNullOrWhiteSpace(pet) && string.IsNullOrWhiteSpace(_dogs[0].Name))
             {
-                _petName = pet.ToString();
+                _dogs[0].Name = pet.ToString();
             }
 
             await CheckStayAsync();
@@ -391,9 +457,16 @@ else
                 return;
             }
 
+            if (_dogs.Count > 1 && AnyDogNeedsTrial)
+            {
+                _stayError = "A large breed needs a free trial night on its own first. Book that trial as a single-dog stay.";
+                return;
+            }
+
             var start = NeedsTrialBooking ? ToSydney(_trialLocal!.Value) : ToSydney(_dropOffLocal);
             var end = NeedsTrialBooking ? start.AddDays(1) : ToSydney(_pickUpLocal!.Value);
-            _availability = await DogSitting.CheckAvailabilityAsync(start, end);
+            _availability = await DogSitting.CheckAvailabilityAsync(start, end, _dogs.Count);
+            _quote = await StayPlans.QuoteAsync(_userId, start, end, _dogs.Count, NeedsTrialBooking);
         }
         catch (Exception ex)
         {
@@ -410,7 +483,6 @@ else
 
         try
         {
-            var breed = await Breeds.ResolveForBookingAsync(ChosenBreed!);
             var trial = NeedsTrialBooking;
             if (!PickUpValid)
             {
@@ -427,20 +499,25 @@ else
                 throw new InvalidOperationException("Choose a trial night at least two days before drop-off.");
             }
 
-            await Cart.AddAsync(
+            var party = new List<StayDogDraft>();
+            foreach (var dog in _dogs)
+            {
+                party.Add(new StayDogDraft(dog.Name.Trim(), await Breeds.ResolveForBookingAsync(dog.ChosenBreed!)));
+            }
+
+            await Cart.AddStayPartyAsync(
                 _product.Id,
-                1,
-                stayStart: ToSydney(trial ? _trialLocal!.Value : _dropOffLocal),
-                stayEnd: ToSydney(trial ? _trialLocal!.Value.AddDays(1) : _pickUpLocal!.Value),
-                petName: _petName.Trim(),
-                petBreed: breed,
-                trialStay: trial,
-                intendedStayStart: trial ? ToSydney(_dropOffLocal) : null,
-                intendedStayEnd: trial ? ToSydney(_pickUpLocal!.Value) : null);
+                ToSydney(trial ? _trialLocal!.Value : _dropOffLocal),
+                ToSydney(trial ? _trialLocal!.Value.AddDays(1) : _pickUpLocal!.Value),
+                party,
+                trial,
+                trial ? ToSydney(_dropOffLocal) : null,
+                trial ? ToSydney(_pickUpLocal!.Value) : null);
+            var names = string.Join(" and ", party.Select(d => d.Name));
             Snackbar.Add(
                 trial
-                    ? $"{_petName.Trim()}'s free trial night added to your basket."
-                    : $"{_petName.Trim()}'s stay added to your basket.",
+                    ? $"{names}'s free trial night added to your basket."
+                    : $"{names}'s stay added to your basket.",
                 Severity.Success);
             _breeds = await Breeds.ListApprovedAsync();
         }
@@ -449,6 +526,23 @@ else
             Snackbar.Add(ex.Message, Severity.Warning);
             await CheckStayAsync();
         }
+    }
+
+    private Task AddDog()
+    {
+        _dogs.Add(new DogForm());
+        return CheckStayAsync();
+    }
+
+    private Task RemoveDog(int index)
+    {
+        if (index <= 0 || index >= _dogs.Count)
+        {
+            return Task.CompletedTask;
+        }
+
+        _dogs.RemoveAt(index);
+        return CheckStayAsync();
     }
 
     private async Task AddAsync()

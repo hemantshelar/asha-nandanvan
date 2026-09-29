@@ -1,6 +1,7 @@
 @page "/offer/{Slug}"
 @inject IProductService Products
 @inject IMediaService MediaItems
+@inject IStayPlanService StayPlans
 @inject NavigationManager Navigation
 @inject IJSRuntime Js
 
@@ -45,8 +46,12 @@ else
         {
             <div class="stay-offer">
                 <DogStayWelcome />
-                <ProductCard Product="_products[0]" />
+                <ProductCard Product="_products[0]" FromPrice="true" />
             </div>
+            @if (_plans.Count > 0)
+            {
+                <StayPlanCards Plans="_plans" />
+            }
         }
         else if (_offer.Slug == OfferCatalog.CompostTours.Slug)
         {
@@ -111,6 +116,7 @@ else
     private OfferDefinition? _offer;
     private IReadOnlyList<ProductListItem> _products = [];
     private IReadOnlyList<MediaClip> _clips = [];
+    private IReadOnlyList<StayRatePlanView> _plans = [];
 
     protected override async Task OnParametersSetAsync()
     {
@@ -123,6 +129,9 @@ else
 
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
         _clips = await MediaItems.ListAsync(_offer.Slug);
+        _plans = _offer.Slug == OfferCatalog.DogSitting.Slug
+            ? await StayPlans.ListAsync()
+            : [];
     }
 
     private async Task ScrollToBookAsync() =>

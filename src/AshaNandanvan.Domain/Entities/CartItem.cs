@@ -16,5 +16,9 @@ public class CartItem
     public bool IsTrialStay { get; set; }
     public DateTimeOffset? IntendedStayStartsAt { get; set; }
     public DateTimeOffset? IntendedStayEndsAt { get; set; }
+    public Guid? StayGroupId { get; set; }
+    public string? StayPlanName { get; set; }
+    public decimal? StayNightlyRate { get; set; }
+    public bool IsCompanionDog { get; set; }
     public int Quantity { get; set; }
 }

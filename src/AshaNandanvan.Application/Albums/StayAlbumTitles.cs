@@ -16,7 +16,8 @@ public static class StayAlbumTitles
             return $"Stay-{order.OrderNumber}";
         }
 
-        var pet = string.IsNullOrWhiteSpace(line.PetName) ? "Stay" : Sanitize(line.PetName);
+        var pets = PetNames(order);
+        var pet = pets.Count == 0 ? "Stay" : string.Join("-and-", pets.Select(Sanitize));
         var start = line.StayStartsAt.Value.ToOffset(BookingPricing.SydneyOffset(line.StayStartsAt.Value));
         var end = line.StayEndsAt.Value.ToOffset(BookingPricing.SydneyOffset(line.StayEndsAt.Value));
         return $"{pet}-{start:ddMMM}-{end:ddMMM}";
@@ -36,17 +37,26 @@ public static class StayAlbumTitles
         return BookingPricing.StayLabel(
             line.StayStartsAt.Value,
             line.StayEndsAt.Value,
-            line.PetName,
+            PetName(order),
             line.PetBreed,
             line.IsTrialStay);
     }
 
-    public static string PetName(Order order) =>
+    public static string PetName(Order order)
+    {
+        var names = PetNames(order);
+        return names.Count == 0 ? "Your dog"
+            : names.Count == 1 ? names[0]
+            : string.Join(" and ", names);
+    }
+
+    private static IReadOnlyList<string> PetNames(Order order) =>
         order.Items
-            .Select(i => i.PetName)
-            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))
-            ?.Trim()
-        ?? "Your dog";
+            .Select(i => i.PetName?.Trim())
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
     private static string Sanitize(string name)
     {

@@ -41,7 +41,14 @@
                             }
                         </td>
                         <td>
-                            <MudNumericField Value="line.Quantity" ValueChanged="(int q) => ChangeAsync(line, q)" Min="1" Max="Math.Max(1, line.Stock)" Variant="Variant.Outlined" />
+                            @if (line.IsStay)
+                            {
+                                <span>@line.Quantity</span>
+                            }
+                            else
+                            {
+                                <MudNumericField Value="line.Quantity" ValueChanged="(int q) => ChangeAsync(line, q)" Min="1" Max="Math.Max(1, line.Stock)" Variant="Variant.Outlined" />
+                            }
                         </td>
                         <td>@CatalogFormatting.Money(line.LineTotal)</td>
                         <td><button class="text-link" @onclick="() => RemoveAsync(line)">Remove</button></td>
@@ -76,7 +83,14 @@
 
     private async Task RemoveAsync(CartLine line)
     {
-        await Cart.RemoveAsync(line.ProductId, line.SlotId);
+        if (line.IsStay)
+        {
+            await Cart.RemoveLineAsync(line.LineKey);
+        }
+        else
+        {
+            await Cart.RemoveAsync(line.ProductId, line.SlotId);
+        }
         _cart = await Cart.GetAsync();
     }
 
