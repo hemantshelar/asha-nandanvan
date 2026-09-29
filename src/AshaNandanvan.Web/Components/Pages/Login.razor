@@ -3,15 +3,37 @@
 @inject IOptions<GoogleAuthOptions> Google
 @inject IOptions<FacebookAuthOptions> Facebook
 @inject IOptions<StoreOptions> Store
+@inject IStayAlbumService Albums
 @inject NavigationManager Navigation
 
-<PageTitle>Sign in — @Store.Value.Name</PageTitle>
+<PageTitle>@(Invite is null ? $"Sign in — {Store.Value.Name}" : $"{Invite.PetName}’s stay album — {Store.Value.Name}")</PageTitle>
 
 <section class="page-hero">
     <div class="shell">
-        <p class="eyebrow">Your account</p>
-        <h1>Sign in</h1>
-        <p class="lede">Use Google or Facebook — no extra password to remember.</p>
+        @if (Invite is not null)
+        {
+            <p class="eyebrow">A private invite</p>
+            <h1>@Invite.PetName is staying with us</h1>
+            <p class="lede">
+                Someone who loves @Invite.PetName sent you this link.
+                While they are away, @Invite.PetName is on a backyard holiday at Asha Nandanvan —
+                and is taking to it with suspicious ease.
+            </p>
+            <p class="lede">
+                Sign in with Google or Facebook to open the private album and see how well
+                @Invite.PetName has settled in. No extra password. After that you land straight on the clips.
+            </p>
+            @if (!string.IsNullOrWhiteSpace(Invite.StayLabel))
+            {
+                <p class="muted">@Invite.StayLabel</p>
+            }
+        }
+        else
+        {
+            <p class="eyebrow">Your account</p>
+            <h1>Sign in</h1>
+            <p class="lede">Use Google or Facebook — no extra password to remember.</p>
+        }
     </div>
 </section>
 
@@ -51,13 +73,14 @@
 @code {
     [SupplyParameterFromQuery] public string? ReturnUrl { get; set; }
     [SupplyParameterFromQuery] public string? Error { get; set; }
+    private StayAlbumInvitePreview? Invite { get; set; }
     private string? _error;
     private bool AnyProvider => Google.Value.IsConfigured || Facebook.Value.IsConfigured;
 
     private string ProviderHref(string provider) =>
         $"/account/{provider}-login?returnUrl={Uri.EscapeDataString(string.IsNullOrWhiteSpace(ReturnUrl) ? "/" : ReturnUrl)}";
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         _error = Error switch
         {
@@ -67,5 +90,41 @@
             "not-configured" => "That sign-in method is not configured on this server.",
             _ => null
         };
+
+        if (TryInviteToken(ReturnUrl, out var token))
+        {
+            Invite = await Albums.PeekInviteAsync(token);
+        }
+    }
+
+    private static bool TryInviteToken(string? returnUrl, out string token)
+    {
+        token = string.Empty;
+        if (string.IsNullOrWhiteSpace(returnUrl))
+        {
+            return false;
+        }
+
+        var path = returnUrl.Trim();
+        if (!path.StartsWith('/'))
+        {
+            path = "/" + path;
+        }
+
+        var query = path.IndexOf('?', StringComparison.Ordinal);
+        if (query >= 0)
+        {
+            path = path[..query];
+        }
+
+        const string prefix = "/albums/join/";
+        if (!path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        token = Uri.UnescapeDataString(path[prefix.Length..].Trim('/'));
+        return token.Length >= 16
+            && token.All(ch => char.IsAsciiLetterOrDigit(ch) || ch is '-' or '_');
     }
 }

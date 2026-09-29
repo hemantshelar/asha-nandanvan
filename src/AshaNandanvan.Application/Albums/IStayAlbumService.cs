@@ -13,6 +13,7 @@ public interface IStayAlbumService
     Task AddCommentAsync(int albumId, int clipId, string userId, bool admin, string body, CancellationToken cancellationToken = default);
     Task DeleteCommentAsync(int albumId, int commentId, string userId, bool admin, CancellationToken cancellationToken = default);
     Task ToggleHeartAsync(int albumId, int clipId, string userId, bool admin, CancellationToken cancellationToken = default);
+    Task<StayAlbumInvitePreview?> PeekInviteAsync(string token, CancellationToken cancellationToken = default);
     Task<int> JoinAsync(string token, string userId, CancellationToken cancellationToken = default);
     Task<string> RotateInviteAsync(int albumId, string userId, bool admin, CancellationToken cancellationToken = default);
     Task RemoveGuestAsync(int albumId, string guestUserId, string actorUserId, bool admin, CancellationToken cancellationToken = default);

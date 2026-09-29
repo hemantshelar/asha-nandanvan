@@ -318,6 +318,29 @@ public sealed class StayAlbumService : IStayAlbumService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    public async Task<StayAlbumInvitePreview?> PeekInviteAsync(string token, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var album = await db.StayAlbums
+            .AsNoTracking()
+            .Include(a => a.Order)
+            .ThenInclude(o => o.Items)
+            .FirstOrDefaultAsync(a => a.InviteToken == token, cancellationToken);
+        if (album is null)
+        {
+            return null;
+        }
+
+        return new StayAlbumInvitePreview(
+            StayAlbumTitles.PetName(album.Order),
+            StayAlbumTitles.StayLabel(album.Order));
+    }
+
     public async Task<int> JoinAsync(string token, string userId, CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(token))

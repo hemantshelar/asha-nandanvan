@@ -67,3 +67,5 @@ public sealed class StayAlbumClipEdit
     public string Caption { get; set; } = string.Empty;
     public DateTime? FilmedOn { get; set; }
 }
+
+public sealed record StayAlbumInvitePreview(string PetName, string StayLabel);
