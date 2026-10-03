@@ -869,6 +869,18 @@ input, select, textarea {
 label > :is(input, select, textarea) { width: 100%; box-sizing: border-box; }
 label > input[type="checkbox"], label > input[type="radio"] { width: auto; }
 label > select, label > input[type="datetime-local"] { font-size: 0.95rem; }
+/* One height for every control so label rows line up on iOS and desktop alike. */
+label > input:not([type="checkbox"], [type="radio"]),
+label > select {
+    height: 2.9rem;
+    min-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+}
+input[type="datetime-local"], input[type="date"], input[type="time"] {
+    text-align: left;
+    color-scheme: dark;
+}
 .field-static {
     display: grid;
     grid-template-columns: var(--field-label-col) minmax(0, var(--field-control-max));
@@ -1116,13 +1128,9 @@ td > .check { margin-bottom: 0; }
 .stay-book__fields input,
 .stay-book__fields select {
     width: 100%;
-    min-height: 3rem;
     box-sizing: border-box;
 }
-.stay-book__fields input[type="datetime-local"] {
-    min-width: 0;
-    color-scheme: dark;
-}
+.stay-book__fields input[type="datetime-local"] { min-width: 0; }
 .stay-book__fields-span { grid-column: 1 / -1; }
 .stay-breed-actions { display: flex; flex-wrap: wrap; gap: 0.85rem; justify-content: flex-end; }
 .breed-admin__add { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1rem; margin-bottom: 1.5rem; }
@@ -1510,12 +1518,11 @@ td > .check { margin-bottom: 0; }
     }
     label > input:not([type="checkbox"], [type="radio"]),
     label > select {
-        min-height: 2.85rem;
         padding-left: 0.7rem;
         padding-right: 0.7rem;
     }
     .stay-dog-card { margin: 1.3rem 0 0.85rem; padding: 0.9rem 0.8rem 0.8rem; }
-    .stay-dog-card .stay-book__fields { gap: 0.7rem; }
+    .stay-book__fields { gap: 0.7rem; }
     .show-row { grid-auto-columns: 78vw; }
     .page-hero { padding: 2.5rem 0 1.5rem; }
     .page-hero h1 { font-size: clamp(2rem, 11vw, 2.7rem); line-height: 1.05; }
