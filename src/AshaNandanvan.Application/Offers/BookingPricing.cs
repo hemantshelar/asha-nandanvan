@@ -103,4 +103,18 @@ public static class BookingPricing
             OperatingSystem.IsWindows() ? "AUS Eastern Standard Time" : "Australia/Sydney");
         return tz.GetUtcOffset(at.UtcDateTime);
     }
+
+    public static DateTimeOffset ToSydney(DateTimeOffset at) => at.ToOffset(SydneyOffset(at));
+
+    public static DateOnly StayVisitDate(DateTimeOffset dropOff)
+    {
+        var local = ToSydney(dropOff);
+        return DateOnly.FromDateTime(local.DateTime);
+    }
+
+    public static string StayVisitWindow(DateTimeOffset dropOff)
+    {
+        var local = ToSydney(dropOff);
+        return local.ToString("h:mm tt");
+    }
 }

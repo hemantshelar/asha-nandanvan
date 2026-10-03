@@ -23,7 +23,14 @@
         <p class="banner">Payment was cancelled. Your basket is still here if you started pay-now.</p>
     }
 
-    @if (_cart.IsEmpty)
+    @if (_pending is not null)
+    {
+        <div class="pending-notice">
+            <p class="banner">You already have a pending order @_pending.OrderNumber. Wait until we approve or reject it before placing another.</p>
+            <a class="btn btn--solid" href="/orders">See my orders</a>
+        </div>
+    }
+    else if (_cart.IsEmpty)
     {
         <p>Your basket is empty.</p>
         <a class="btn btn--solid" href="/#offers">See what we offer</a>
@@ -44,20 +51,31 @@
                     Phone (optional, useful if we need to confirm)
                     <input @bind="_request.Phone" />
                 </label>
-                <label>
-                    Pickup or visit date
-                    <input type="date" value="@_request.PickupDate.ToString("yyyy-MM-dd")" @onchange="OnDate" min="@DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd")" required />
-                </label>
-                <label>
-                    Pickup window
-                    <select @bind="_request.PickupWindow">
-                        @foreach (var window in Store.PickupWindows)
-                        {
-                            <option value="@window">@window</option>
-                        }
-                    </select>
-                </label>
-                <p class="muted">@Store.PickupAddress</p>
+                @if (IsStayCheckout)
+                {
+                    <p>
+                        Drop-off
+                        <strong>@_request.PickupDate.ToString("dddd d MMMM") · @_request.PickupWindow</strong>
+                    </p>
+                    <p class="muted">This is the drop-off you already chose. We will meet you then.</p>
+                }
+                else
+                {
+                    <label>
+                        Pickup or visit date
+                        <input type="date" value="@_request.PickupDate.ToString("yyyy-MM-dd")" @onchange="OnDate" min="@DateOnly.FromDateTime(DateTime.Today.AddDays(1)).ToString("yyyy-MM-dd")" required />
+                    </label>
+                    <label>
+                        Pickup window
+                        <select @bind="_request.PickupWindow">
+                            @foreach (var window in Store.PickupWindows)
+                            {
+                                <option value="@window">@window</option>
+                            }
+                        </select>
+                    </label>
+                    <p class="muted">@Store.PickupAddress</p>
+                }
                 <p class="muted">We approve every order first. Pay online from My orders after it is approved.</p>
                 <div class="checkout__actions">
                     <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="SubmitAsync">Place order</button>
@@ -87,7 +105,9 @@
     private readonly CheckoutRequest _request = new();
     private bool _busy;
     private bool _cancelled;
+    private OrderSummary? _pending;
     private StoreOptions Store => StoreAccessor.Value;
+    private bool IsStayCheckout => _cart.Items.Any() && _cart.Items.All(line => line.IsStay);
 
     protected override async Task OnInitializedAsync()
     {
@@ -99,6 +119,12 @@
         _request.CustomerName = state.User.Identity?.Name?.Split('@')[0] ?? string.Empty;
         _request.PickupDate = DateOnly.FromDateTime(DateTime.Today.AddDays(1));
         _request.PickupWindow = Store.PickupWindows.FirstOrDefault() ?? Store.PickupHours;
+
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            _pending = await Orders.GetPendingForUserAsync(userId);
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -106,8 +132,24 @@
         if (firstRender)
         {
             _cart = await Cart.GetAsync();
+            ApplyStayVisit();
             StateHasChanged();
         }
+    }
+
+    private void ApplyStayVisit()
+    {
+        if (!IsStayCheckout)
+        {
+            return;
+        }
+
+        var dropOff = _cart.Items
+            .Where(line => line.StayStartsAt is not null)
+            .Select(line => line.StayStartsAt!.Value)
+            .Min();
+        _request.PickupDate = BookingPricing.StayVisitDate(dropOff);
+        _request.PickupWindow = BookingPricing.StayVisitWindow(dropOff);
     }
 
     private void OnDate(ChangeEventArgs e)
@@ -120,6 +162,12 @@
 
     private async Task SubmitAsync()
     {
+        if (_pending is not null)
+        {
+            Snackbar.Add($"You already have a pending order ({_pending.OrderNumber}).", Severity.Warning);
+            return;
+        }
+
         if (string.IsNullOrWhiteSpace(_request.CustomerName) || string.IsNullOrWhiteSpace(_request.CustomerEmail))
         {
             Snackbar.Add("Name and email are needed.", Severity.Warning);

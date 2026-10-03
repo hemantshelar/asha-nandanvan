@@ -1,5 +1,7 @@
 @page "/cart"
 @inject ICartService Cart
+@inject IOrderService Orders
+@inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 
 <PageTitle>Basket — Asha Nandanvan</PageTitle>
@@ -56,15 +58,36 @@
                 }
             </tbody>
         </table>
-        <div class="cart-foot">
+        <div class="cart-foot @(_pending is not null ? "cart-foot--pending" : null)">
             <p>Total <strong>@CatalogFormatting.Money(_cart.Total)</strong></p>
-            <button class="btn btn--solid" @onclick="Checkout">Checkout</button>
+            @if (_pending is not null)
+            {
+                <div class="pending-notice">
+                    <p class="pending-notice__callout">You already have a pending order <strong>@_pending.OrderNumber</strong>. Wait until we approve or reject it before placing another.</p>
+                    <a class="btn btn--solid" href="/orders">See my orders</a>
+                </div>
+            }
+            else
+            {
+                <button class="btn btn--solid" @onclick="Checkout">Checkout</button>
+            }
         </div>
     }
 </section>
 
 @code {
     private CartSnapshot _cart = new([]);
+    private OrderSummary? _pending;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await Auth.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            _pending = await Orders.GetPendingForUserAsync(userId);
+        }
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {

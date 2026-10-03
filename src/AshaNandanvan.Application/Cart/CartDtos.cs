@@ -12,7 +12,8 @@ public sealed record CartLine(
     int Stock,
     string? ImagePath,
     string? SlotLabel,
-    bool IsStay = false)
+    bool IsStay = false,
+    DateTimeOffset? StayStartsAt = null)
 {
     public decimal LineTotal => UnitPrice * Quantity;
 }

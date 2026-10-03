@@ -9,11 +9,19 @@
 
 <PageTitle>Order @OrderNumber — Admin</PageTitle>
 
-<section class="page-hero">
+<section class="page-hero page-hero--order">
     <div class="shell">
-        <p class="eyebrow">Admin</p>
-        <h1>@_order?.OrderNumber</h1>
-        <p><a class="text-link" href="/admin/orders">Back to orders</a></p>
+        <div class="order-desk__head">
+            <div>
+                <p class="eyebrow">Admin</p>
+                <h1>@_order?.OrderNumber</h1>
+                <p><a class="text-link" href="/admin/orders">Back to orders</a></p>
+            </div>
+            @if (_order is not null)
+            {
+                <span class="order-pill order-pill--@StatusTone(_order)">@_order.StatusLabel</span>
+            }
+        </div>
     </div>
 </section>
 
@@ -24,59 +32,80 @@
     }
     else
     {
-        <div class="stay-offer">
-            <article class="panel">
-                <p>Status: <strong>@_order.StatusLabel</strong></p>
-                <p>@_order.CustomerName<br /><span class="muted">@_order.CustomerEmail</span></p>
-                @if (!string.IsNullOrWhiteSpace(_order.Phone))
-                {
-                    <p>Phone: @_order.Phone</p>
-                }
-                <p>Visit / collect @_order.PickupDate.ToString("dddd d MMMM") · @_order.PickupWindow</p>
-                @if (!string.IsNullOrWhiteSpace(_order.PaymentProvider))
-                {
-                    <p>Payment: @_order.PaymentProvider @_order.PaymentReference</p>
-                }
-                <ul>
+        <div class="order-desk @(_order.CanPay ? null : "order-desk--solo")">
+            <article class="panel order-desk__main">
+                <div class="order-desk__facts">
+                    <div>
+                        <p class="eyebrow">Customer</p>
+                        <strong>@_order.CustomerName</strong>
+                        <p class="muted">@_order.CustomerEmail</p>
+                        @if (!string.IsNullOrWhiteSpace(_order.Phone))
+                        {
+                            <p class="muted">@_order.Phone</p>
+                        }
+                    </div>
+                    <div>
+                        <p class="eyebrow">Visit</p>
+                        <strong>@_order.PickupDate.ToString("dddd d MMMM")</strong>
+                        <p class="muted">@_order.PickupWindow</p>
+                    </div>
+                    <div>
+                        <p class="eyebrow">Payment</p>
+                        <strong>@PaymentLabel</strong>
+                        @if (!string.IsNullOrWhiteSpace(_order.PaymentReference))
+                        {
+                            <p class="muted">@_order.PaymentReference</p>
+                        }
+                    </div>
+                </div>
+                <ul class="order-sheet__items">
                     @foreach (var line in _order.Items)
                     {
                         <li>
-                            @line.Quantity × @line.ProductName
-                            @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
-                            {
-                                <text> (@line.SlotLabel)</text>
-                            }
+                            <span>@line.Quantity × @line.ProductName</span>
+                            <span>@CatalogFormatting.Money(line.UnitPrice * line.Quantity)</span>
                             @if (!string.IsNullOrWhiteSpace(line.StayPlanName))
                             {
-                                <div class="muted">@(line.IsCompanionDog ? "Companion" : "Lead dog") · @line.StayPlanName</div>
+                                <small class="muted">@(line.IsCompanionDog ? "Companion" : "Lead dog") · @line.StayPlanName</small>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(line.SlotLabel))
+                            {
+                                <small class="muted">@line.SlotLabel</small>
                             }
                             @if (line.IsTrialStay && line.IntendedStayStartsAt is not null && line.IntendedStayEndsAt is not null)
                             {
-                                <div class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</div>
+                                <small class="muted">Wanted stay: @StayRange(line.IntendedStayStartsAt.Value, line.IntendedStayEndsAt.Value)</small>
                             }
-                            — @CatalogFormatting.Money(line.UnitPrice * line.Quantity)
                         </li>
                     }
                 </ul>
-                <p class="total">Total @CatalogFormatting.Money(_order.Total)</p>
-                @if (_order.AlbumId is int albumId)
+                <p class="order-desk__total">
+                    <span>Total</span>
+                    <span>@CatalogFormatting.Money(_order.Total)</span>
+                </p>
+                @if (HasDecisionActions || _order.CanPay || _order.AlbumId is not null)
                 {
-                    <p><a class="btn btn--ghost" href="/albums/@albumId">Open album</a></p>
-                }
-                @if (_order.CanApprove || _order.CanReject || _order.CanPlaceOriginalStay || _order.CanDeclineLongerStay)
-                {
-                    <div class="checkout__actions">
+                    <div class="order-desk__actions">
                         @if (_order.CanApprove)
                         {
                             <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="ApproveAsync">Approve</button>
                         }
-                        @if (_order.CanReject)
-                        {
-                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
-                        }
                         @if (_order.CanPlaceOriginalStay)
                         {
                             <button class="btn btn--solid" type="button" disabled="@_busy" @onclick="PlaceOriginalAsync">Place original order</button>
+                        }
+                        @if (_order.CanPay)
+                        {
+                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="MarkCashAsync">Mark paid (cash)</button>
+                            <button class="btn btn--solid" type="button" disabled="@(_busy || _needsSquareKeys)" @onclick="StartOnlineAsync">Start online pay</button>
+                        }
+                        @if (_order.AlbumId is int albumId)
+                        {
+                            <a class="btn btn--ghost" href="/albums/@albumId">Open album</a>
+                        }
+                        @if (_order.CanReject)
+                        {
+                            <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="RejectAsync">Reject</button>
                         }
                         @if (_order.CanDeclineLongerStay)
                         {
@@ -84,25 +113,19 @@
                         }
                     </div>
                 }
-                @if (_order.CanPay)
-                {
-                    <div class="checkout__actions">
-                        <button class="btn btn--ghost" type="button" disabled="@_busy" @onclick="MarkCashAsync">Mark paid (cash)</button>
-                        <button class="btn btn--solid" type="button" disabled="@(_busy || _needsSquareKeys)" @onclick="StartOnlineAsync">Start online pay</button>
-                    </div>
-                }
             </article>
             @if (_order.CanPay)
             {
-                <article class="panel">
-                    <h2>Customer pay QR</h2>
-                    <p class="muted">Show this on your phone. They scan it, open the pay page, and finish on Square.</p>
+                <aside class="panel order-desk__pay">
+                    <p class="eyebrow">Customer pay</p>
+                    <h2>Show this QR</h2>
+                    <p class="muted">They scan it, open the pay page, and finish on Square.</p>
                     <div class="pay-qr-block">
                         <img class="pay-qr" src="@_qrUri" alt="Payment QR for @_order.OrderNumber" />
                     </div>
-                    <p class="muted">@_payUrl</p>
-                    <p>Order @_order.OrderNumber · @CatalogFormatting.Money(_order.Total)</p>
-                </article>
+                    <p class="order-desk__amount">@CatalogFormatting.Money(_order.Total)</p>
+                    <p class="muted order-desk__url">@_payUrl</p>
+                </aside>
             }
         </div>
     }
@@ -118,6 +141,18 @@
     private bool _needsSquareKeys =>
         PaymentAccessor.Value.Provider.Equals("Square", StringComparison.OrdinalIgnoreCase)
         && !PaymentAccessor.Value.Square.IsConfigured;
+    private bool HasDecisionActions =>
+        _order is { CanApprove: true } or { CanReject: true } or { CanPlaceOriginalStay: true } or { CanDeclineLongerStay: true };
+    private string PaymentLabel =>
+        _order is null ? string.Empty
+        : _order.Status.IsPaid() ? (_order.PaymentProvider is { Length: > 0 } paid ? paid : "Paid")
+        : !string.IsNullOrWhiteSpace(_order.PaymentProvider) ? _order.PaymentProvider
+        : "Waiting";
+
+    private static string StatusTone(OrderSummary order) =>
+        order.Status.IsRejected() ? "no"
+        : order.Status.IsApproved() || order.Status.IsPaid() ? "ok"
+        : "wait";
 
     protected override async Task OnInitializedAsync()
     {

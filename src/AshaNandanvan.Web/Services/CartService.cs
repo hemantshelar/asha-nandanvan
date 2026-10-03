@@ -722,7 +722,8 @@ public sealed class CartService : ICartService
             slot?.Remaining ?? product.Stock,
             product.ImagePath,
             label,
-            stayStart is not null);
+            stayStart is not null,
+            stayStart);
     }
 
     private static async Task<Cart> GetOrCreateDbCartAsync(AppDbContext db, string userId, CancellationToken cancellationToken)

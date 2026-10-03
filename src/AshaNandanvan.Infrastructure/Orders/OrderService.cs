@@ -38,6 +38,15 @@ public sealed class OrderService : IOrderService
             throw new InvalidOperationException("This account is paused. You cannot place an order.");
         }
 
+        var pendingNumber = await PendingOrders(db, userId)
+            .OrderByDescending(o => o.CreatedAt)
+            .Select(o => o.OrderNumber)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (pendingNumber is not null)
+        {
+            throw new InvalidOperationException($"You already have a pending order ({pendingNumber}). Wait until we approve or reject it before placing another.");
+        }
+
         var cart = await db.Carts
             .Include(c => c.Items)
             .ThenInclude(i => i.Product)
@@ -109,6 +118,16 @@ public sealed class OrderService : IOrderService
         }
 
         var now = DateTimeOffset.UtcNow;
+        var stayItems = cart.Items.Where(i => i.StayStartsAt is not null).ToList();
+        var stayOnly = stayItems.Count > 0 && stayItems.Count == cart.Items.Count;
+        var stayDropOff = stayOnly ? stayItems.Min(i => i.StayStartsAt) : null;
+        var pickupDate = stayDropOff is DateTimeOffset dropOff
+            ? BookingPricing.StayVisitDate(dropOff)
+            : request.PickupDate;
+        var pickupWindow = stayDropOff is DateTimeOffset visit
+            ? BookingPricing.StayVisitWindow(visit)
+            : request.PickupWindow;
+
         var order = new Order
         {
             OrderNumber = $"AN-{now:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}",
@@ -116,8 +135,8 @@ public sealed class OrderService : IOrderService
             CustomerName = request.CustomerName.Trim(),
             CustomerEmail = request.CustomerEmail.Trim(),
             Phone = string.IsNullOrWhiteSpace(request.Phone) ? null : request.Phone.Trim(),
-            PickupDate = request.PickupDate,
-            PickupWindow = request.PickupWindow,
+            PickupDate = pickupDate,
+            PickupWindow = pickupWindow,
             Status = OrderStatus.Placed,
             Total = cart.Items.Sum(i => BookingPricing.LineTotal(i.Product, i.ProductSlot, i.Quantity, i.StayStartsAt, i.StayEndsAt, i.IsTrialStay, i.StayNightlyRate)),
             PaymentProvider = string.Empty,
@@ -169,6 +188,18 @@ public sealed class OrderService : IOrderService
             .ToListAsync(cancellationToken);
 
         return orders.Select(ToSummary).ToList();
+    }
+
+    public async Task<OrderSummary?> GetPendingForUserAsync(string userId, CancellationToken cancellationToken = default)
+    {
+        await using var db = await _dbFactory.CreateDbContextAsync(cancellationToken);
+        var order = await PendingOrders(db, userId)
+            .AsNoTracking()
+            .Include(o => o.Items)
+            .Include(o => o.Album)
+            .OrderByDescending(o => o.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+        return order is null ? null : ToSummary(order);
     }
 
     public async Task<OrderSummary?> GetByNumberAsync(string orderNumber, string? userId = null, bool admin = false, CancellationToken cancellationToken = default)
@@ -423,6 +454,11 @@ public sealed class OrderService : IOrderService
             product.UpdatedAt = DateTimeOffset.UtcNow;
         }
     }
+
+    private static IQueryable<Order> PendingOrders(AppDbContext db, string userId) =>
+        db.Orders.Where(o =>
+            o.UserId == userId
+            && (o.Status == OrderStatus.Placed || o.Status == OrderStatus.PendingPayment));
 
     private static OrderSummary ToSummary(Order order) =>
         new(

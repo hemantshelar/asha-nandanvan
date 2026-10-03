@@ -2,6 +2,8 @@
 @inject IProductService Products
 @inject IMediaService MediaItems
 @inject IStayPlanService StayPlans
+@inject IOrderService Orders
+@inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 @inject IJSRuntime Js
 
@@ -23,7 +25,16 @@ else
                 <h1>@_offer.Title</h1>
                 <hr class="page-hero__rule" />
                 <p class="lede">@_offer.Description</p>
-                @if (_offer.Slug == OfferCatalog.CompostTours.Slug)
+                @if (_pending is not null)
+                {
+                    <div class="pending-notice">
+                        <p class="banner banner--warn">You already have a pending order @_pending.OrderNumber. Wait until we approve or reject it before placing another booking.</p>
+                        <div class="page-hero__actions">
+                            <a class="btn btn--solid" href="/orders">See my orders</a>
+                        </div>
+                    </div>
+                }
+                else if (_offer.Slug == OfferCatalog.CompostTours.Slug)
                 {
                     <div class="page-hero__actions">
                         <button type="button" class="btn btn--solid" @onclick="ScrollToBookAsync">Book a date</button>
@@ -46,7 +57,22 @@ else
         {
             <div class="stay-offer">
                 <DogStayWelcome />
-                <ProductCard Product="_products[0]" FromPrice="true" />
+                @if (_pending is not null)
+                {
+                    <article class="product-card product-card--photo product-card--notice">
+                        <div class="product-card__body">
+                            <h3>@_products[0].Name</h3>
+                            <div class="pending-notice">
+                                <p class="banner banner--warn">Booking is paused while @_pending.OrderNumber is pending.</p>
+                                <a class="btn btn--solid" href="/orders">See my orders</a>
+                            </div>
+                        </div>
+                    </article>
+                }
+                else
+                {
+                    <ProductCard Product="_products[0]" FromPrice="true" />
+                }
             </div>
             @if (_plans.Count > 0)
             {
@@ -71,7 +97,14 @@ else
                                 @CatalogFormatting.Money(product.Price)
                                 <span>/ @product.Unit</span>
                             </p>
-                            <a class="btn btn--solid" href="/shop/@product.Slug">Choose a date</a>
+                            @if (_pending is not null)
+                            {
+                                <a class="btn btn--solid" href="/orders">See my orders</a>
+                            }
+                            else
+                            {
+                                <a class="btn btn--solid" href="/shop/@product.Slug">Choose a date</a>
+                            }
                         </div>
                     </article>
                 }
@@ -79,10 +112,20 @@ else
         }
         else if (_offer.RequiresBooking && _products.Count == 1)
         {
-            <p class="muted">Choose a date on the next screen, then add it to your basket.</p>
-            <div class="product-grid">
-                <ProductCard Product="_products[0]" />
-            </div>
+            @if (_pending is not null)
+            {
+                <div class="pending-notice">
+                    <p class="banner banner--warn">Booking is paused while @_pending.OrderNumber is pending.</p>
+                    <a class="btn btn--solid" href="/orders">See my orders</a>
+                </div>
+            }
+            else
+            {
+                <p class="muted">Choose a date on the next screen, then add it to your basket.</p>
+                <div class="product-grid">
+                    <ProductCard Product="_products[0]" />
+                </div>
+            }
         }
         else
         {
@@ -117,6 +160,7 @@ else
     private IReadOnlyList<ProductListItem> _products = [];
     private IReadOnlyList<MediaClip> _clips = [];
     private IReadOnlyList<StayRatePlanView> _plans = [];
+    private OrderSummary? _pending;
 
     protected override async Task OnParametersSetAsync()
     {
@@ -126,6 +170,10 @@ else
             Navigation.NavigateTo("/not-found");
             return;
         }
+
+        var state = await Auth.GetAuthenticationStateAsync();
+        var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        _pending = string.IsNullOrWhiteSpace(userId) ? null : await Orders.GetPendingForUserAsync(userId);
 
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
         _clips = await MediaItems.ListAsync(_offer.Slug);

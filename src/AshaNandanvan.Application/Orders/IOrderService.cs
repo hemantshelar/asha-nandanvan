@@ -8,6 +8,7 @@ public interface IOrderService
     Task<OrderSummary?> GetByNumberAsync(string orderNumber, string? userId = null, bool admin = false, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OrderSummary>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<OrderSummary>> GetMineAsync(string userId, CancellationToken cancellationToken = default);
+    Task<OrderSummary?> GetPendingForUserAsync(string userId, CancellationToken cancellationToken = default);
     Task ApproveAsync(int orderId, CancellationToken cancellationToken = default);
     Task RejectAsync(int orderId, CancellationToken cancellationToken = default);
     Task PlaceOriginalStayAsync(int orderId, CancellationToken cancellationToken = default);
