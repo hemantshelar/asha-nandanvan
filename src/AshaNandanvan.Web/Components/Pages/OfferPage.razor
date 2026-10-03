@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 @inject IJSRuntime Js
+@inject IVisitTracker Visits
 
 <PageTitle>@(_offer?.Title ?? "Offer") — Asha Nandanvan</PageTitle>
 
@@ -174,6 +175,11 @@ else
         var state = await Auth.GetAuthenticationStateAsync();
         var userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         _pending = string.IsNullOrWhiteSpace(userId) ? null : await Orders.GetPendingForUserAsync(userId);
+
+        if (_pending is not null && _offer.RequiresBooking)
+        {
+            await Visits.EventAsync(VisitEventKind.BookingBlockedPending, _pending.OrderNumber);
+        }
 
         _products = await Products.GetActiveByOfferAsync(_offer.Slug);
         _clips = await MediaItems.ListAsync(_offer.Slug);

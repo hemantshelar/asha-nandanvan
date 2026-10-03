@@ -1,3 +1,4 @@
+using AshaNandanvan.Application.Analytics;
 using AshaNandanvan.Application.Options;
 using AshaNandanvan.Application.DogSitting;
 using AshaNandanvan.Application.Albums;
@@ -7,6 +8,7 @@ using AshaNandanvan.Application.Users;
 using AshaNandanvan.Application.Payments;
 using AshaNandanvan.Application.Products;
 using AshaNandanvan.Infrastructure.Albums;
+using AshaNandanvan.Infrastructure.Analytics;
 using AshaNandanvan.Infrastructure.Data;
 using AshaNandanvan.Infrastructure.DogSitting;
 using AshaNandanvan.Infrastructure.Identity;
@@ -56,6 +58,8 @@ public static class DependencyInjection
         services.AddScoped<IStayAlbumService, StayAlbumService>();
         services.AddScoped<IUserAdminService, UserAdminService>();
         services.AddScoped<IOrderService, OrderService>();
+        services.AddScoped<IVisitStore, VisitStore>();
+        services.AddScoped<IInsightsService, InsightsService>();
         services.AddScoped<DatabaseSeeder>();
         services.AddScoped<StripePaymentProvider>();
         services.AddScoped<SquarePaymentProvider>();

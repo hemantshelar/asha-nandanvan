@@ -25,6 +25,9 @@ public static class DependencyInjection
         services.AddOptions<AdminOptions>()
             .Bind(configuration.GetSection(AdminOptions.SectionName));
 
+        services.AddOptions<AnalyticsOptions>()
+            .Bind(configuration.GetSection(AnalyticsOptions.SectionName));
+
         return services;
     }
 }

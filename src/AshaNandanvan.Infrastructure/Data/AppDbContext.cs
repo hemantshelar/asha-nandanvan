@@ -27,6 +27,8 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<StayAlbumReaction> StayAlbumReactions => Set<StayAlbumReaction>();
     public DbSet<YouTubeChannelLink> YouTubeChannelLinks => Set<YouTubeChannelLink>();
     public DbSet<StayRatePlan> StayRatePlans => Set<StayRatePlan>();
+    public DbSet<VisitSession> VisitSessions => Set<VisitSession>();
+    public DbSet<VisitEvent> VisitEvents => Set<VisitEvent>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
@@ -209,6 +211,44 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             entity.Property(l => l.ChannelId).HasMaxLength(80).IsRequired();
             entity.Property(l => l.ChannelTitle).HasMaxLength(160).IsRequired();
             entity.Property(l => l.ConnectedByUserId).HasMaxLength(450).IsRequired();
+        });
+
+        builder.Entity<VisitSession>(entity =>
+        {
+            entity.Ignore(s => s.SecondsOnSite);
+            entity.Property(s => s.Source).HasMaxLength(40).IsRequired();
+            entity.Property(s => s.FirstTouchSource).HasMaxLength(40).IsRequired();
+            entity.Property(s => s.Campaign).HasMaxLength(120);
+            entity.Property(s => s.Medium).HasMaxLength(40);
+            entity.Property(s => s.Referrer).HasMaxLength(500);
+            entity.Property(s => s.LandingPath).HasMaxLength(300).IsRequired();
+            entity.Property(s => s.ExitPath).HasMaxLength(300);
+            entity.Property(s => s.IpHash).HasMaxLength(64).IsRequired();
+            entity.Property(s => s.IpNetwork).HasMaxLength(64);
+            entity.Property(s => s.Country).HasMaxLength(8);
+            entity.Property(s => s.Browser).HasMaxLength(40);
+            entity.Property(s => s.BrowserVersion).HasMaxLength(40);
+            entity.Property(s => s.Platform).HasMaxLength(40);
+            entity.Property(s => s.PlatformVersion).HasMaxLength(40);
+            entity.Property(s => s.DeviceModel).HasMaxLength(80);
+            entity.Property(s => s.UserId).HasMaxLength(450);
+            entity.Property(s => s.UserAgent).HasMaxLength(500);
+            entity.HasIndex(s => s.SessionKey).IsUnique();
+            entity.HasIndex(s => new { s.IsBot, s.StartedAt });
+            entity.HasIndex(s => new { s.VisitorId, s.LastSeenAt });
+            entity.HasMany(s => s.Events)
+                .WithOne(e => e.Session)
+                .HasForeignKey(e => e.VisitSessionId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        builder.Entity<VisitEvent>(entity =>
+        {
+            entity.Property(e => e.Path).HasMaxLength(300).IsRequired();
+            entity.Property(e => e.Detail).HasMaxLength(200);
+            entity.Property(e => e.Value).HasColumnType("decimal(10,2)");
+            entity.HasIndex(e => new { e.Kind, e.At });
+            entity.HasIndex(e => new { e.VisitSessionId, e.Kind, e.At });
         });
 
         builder.Entity<ApplicationUser>(entity =>

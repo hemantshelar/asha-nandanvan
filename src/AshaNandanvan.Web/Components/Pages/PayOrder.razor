@@ -5,6 +5,7 @@
 @inject IOptions<PaymentOptions> PaymentAccessor
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IVisitTracker Visits
 
 <PageTitle>Pay @OrderNumber — Asha Nandanvan</PageTitle>
 
@@ -84,6 +85,7 @@
         try
         {
             var payment = await Payment.CreatePaymentAsync(PaymentFlow.ForOrder(_order, Store.Currency));
+            await Visits.EventAsync(VisitEventKind.PaymentOpened, _order.OrderNumber, _order.Total);
             Navigation.NavigateTo(payment.RedirectUrl, forceLoad: true);
         }
         catch (Exception ex)

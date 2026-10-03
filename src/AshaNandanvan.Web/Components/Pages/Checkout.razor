@@ -6,6 +6,7 @@
 @inject AuthenticationStateProvider Auth
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject IVisitTracker Visits
 
 <PageTitle>Checkout — Asha Nandanvan</PageTitle>
 
@@ -134,6 +135,11 @@
             _cart = await Cart.GetAsync();
             ApplyStayVisit();
             StateHasChanged();
+
+            if (!_cart.IsEmpty && _pending is null)
+            {
+                await Visits.EventAsync(VisitEventKind.CheckoutOpened, value: _cart.Total);
+            }
         }
     }
 
@@ -182,6 +188,7 @@
                 ?? throw new InvalidOperationException("Please sign in again.");
 
             var order = await Orders.CreateOrderAsync(userId, _request, payNow: false);
+            await Visits.EventAsync(VisitEventKind.OrderPlaced, order.OrderNumber, order.Total);
             await Cart.ClearAsync();
             Navigation.NavigateTo($"/checkout/confirmation/{order.OrderNumber}");
         }

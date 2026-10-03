@@ -2,6 +2,8 @@
 @inject IOptions<StoreOptions> Store
 @inject ICartService Cart
 @inject NavigationManager Navigation
+@inject IVisitTracker Visits
+@inject IJSRuntime JS
 @implements IDisposable
 
 <MudThemeProvider Theme="_theme" IsDarkMode="true" />
@@ -101,6 +103,7 @@
                     <NavLink href="/orders">Orders</NavLink>
                     <NavLink href="/albums">Albums</NavLink>
                     <NavLink href="/admin/users">People</NavLink>
+                    <NavLink href="/admin/insights">Visitors</NavLink>
                 </div>
             </div>
         }
@@ -156,8 +159,33 @@
             Cart.Changed += OnCartChanged;
             await RefreshCartAsync();
             StateHasChanged();
+            await StartTrackingAsync();
         }
     }
+
+    // The request pipeline logged the page the visitor arrived on, but everything after that
+    // is routed inside this circuit and never reaches the server as a request of its own.
+    private async Task StartTrackingAsync()
+    {
+        try
+        {
+            var handshake = await JS.InvokeAsync<VisitHandshake>("ashaVisit");
+            if (Guid.TryParse(handshake.Session, out var sessionKey))
+            {
+                await Visits.BeginAsync(sessionKey, handshake.Width > 0 ? handshake.Width : null);
+                Navigation.LocationChanged += OnLocationChanged;
+            }
+        }
+        catch (JSException)
+        {
+            // No tracking for this circuit; the next full page load will open a fresh visit.
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs args) =>
+        _ = InvokeAsync(() => Visits.PageViewAsync("/" + Navigation.ToBaseRelativePath(args.Location)));
+
+    public sealed record VisitHandshake(string? Session, int Width);
 
     private async void OnCartChanged()
     {
@@ -177,5 +205,9 @@
     private void ToggleMenu() => _menuOpen = !_menuOpen;
     private void CloseMenu() => _menuOpen = false;
 
-    public void Dispose() => Cart.Changed -= OnCartChanged;
+    public void Dispose()
+    {
+        Cart.Changed -= OnCartChanged;
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
 }

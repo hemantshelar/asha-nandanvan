@@ -92,6 +92,7 @@
             <li><strong>Payments:</strong> that a payment was made, the provider name, and a payment reference. We do not store full card numbers. Square or Stripe collect card details on their own pages.</li>
             <li><strong>Basket:</strong> items you add, including pet details for a stay. Signed-in baskets are stored on our server. Guest baskets stay in your browser.</li>
             <li><strong>Technical:</strong> cookies needed to keep you signed in, and ordinary server or hosting logs (which may include an IP address and the page requested).</li>
+            <li><strong>Visit statistics:</strong> which pages were viewed, which link brought you here, your device type, browser, operating system, and screen width. Your IP address is not stored: we keep a one-way scrambled version of it, plus the broad network it belongs to, only so we can count how many different households visited. These records are deleted automatically after six months.</li>
         </ul>
         <p>
             We do not collect government identifiers, health records, or payment card PANs. We do not ask
@@ -152,8 +153,12 @@
         <h2>10. Cookies and local storage</h2>
         <p>
             We use an authentication cookie so you stay signed in, and a guest-basket value in your
-            browser until you sign in. We do not use third-party advertising cookies on this site.
-            You can clear cookies and site data in your browser; that signs you out and drops a guest basket.
+            browser until you sign in. We also set three of our own small values that let us count
+            visits: one for this browser, one for the current visit, and one remembering which link
+            first brought you here. They are ours alone — we do not use third-party advertising or
+            tracking cookies on this site, and nothing is shared with an advertising network.
+            You can clear cookies and site data in your browser; that signs you out, drops a guest
+            basket, and makes you look like a new visitor to our counts.
         </p>
     </article>
 
@@ -183,7 +188,9 @@
             Account and login details stay until you ask us to delete them, or we close the account.
             We may keep a limited order record (what was booked, paid, and when) for as long as Australian
             tax or consumer law reasonably requires — often several years — then delete or de-identify it.
-            Server logs are kept only for a short operational period.
+            Server logs are kept only for a short operational period. Visit statistics are deleted
+            after six months, and if you delete your account the visits already recorded stop being
+            connected to you and remain only as anonymous counts.
         </p>
     </article>
 

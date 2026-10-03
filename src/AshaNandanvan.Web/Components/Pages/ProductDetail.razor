@@ -8,6 +8,7 @@
 @inject AuthenticationStateProvider Auth
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject IVisitTracker Visits
 
 <PageTitle>@(_product?.Name ?? "Product") — Asha Nandanvan</PageTitle>
 
@@ -400,6 +401,11 @@ else
         _userId = state.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
         _pending = string.IsNullOrWhiteSpace(_userId) ? null : await Orders.GetPendingForUserAsync(_userId);
 
+        if (_pending is not null)
+        {
+            await Visits.EventAsync(VisitEventKind.BookingBlockedPending, _pending.OrderNumber);
+        }
+
         if (_product.Category == ProductCategory.DogSitting)
         {
             _settings = await DogSitting.GetSettingsAsync();
@@ -509,6 +515,13 @@ else
             var end = NeedsTrialBooking ? start.AddDays(1) : ToSydney(_pickUpLocal!.Value);
             _availability = await DogSitting.CheckAvailabilityAsync(start, end, _dogs.Count);
             _quote = await StayPlans.QuoteAsync(_userId, start, end, _dogs.Count, NeedsTrialBooking);
+
+            if (!_availability.CanBook)
+            {
+                await Visits.EventAsync(
+                    VisitEventKind.BookingFull,
+                    $"{BookingPricing.StayVisitDate(start):d MMM} for {_dogs.Count} dog{(_dogs.Count == 1 ? "" : "s")}");
+            }
         }
         catch (Exception ex)
         {
@@ -561,6 +574,7 @@ else
                     ? $"{names}'s free trial night added to your basket."
                     : $"{names}'s stay added to your basket.",
                 Severity.Success);
+            await Visits.EventAsync(VisitEventKind.AddedToCart, _product.Slug);
             _breeds = await Breeds.ListApprovedAsync();
         }
         catch (Exception ex)
@@ -598,6 +612,7 @@ else
         {
             await Cart.AddAsync(_product.Id, _quantity, _product.RequiresBooking ? _slotId : null);
             Snackbar.Add($"{_product.Name} added to your basket.", Severity.Success);
+            await Visits.EventAsync(VisitEventKind.AddedToCart, _product.Slug);
         }
         catch (Exception ex)
         {

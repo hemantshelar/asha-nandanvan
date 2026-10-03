@@ -1,8 +1,11 @@
 using System.Security.Claims;
+using AshaNandanvan.Application.Analytics;
 using AshaNandanvan.Application.Common;
 using AshaNandanvan.Application.Options;
 using AshaNandanvan.Application.Users;
+using AshaNandanvan.Domain.Enums;
 using AshaNandanvan.Infrastructure.Identity;
+using AshaNandanvan.Web.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
 
@@ -28,6 +31,8 @@ public static class AccountEndpoints
             SignInManager<ApplicationUser> signInManager,
             UserManager<ApplicationUser> userManager,
             IOptions<AdminOptions> adminOptions,
+            IVisitStore visits,
+            HttpContext http,
             string? returnUrl) =>
         {
             var info = await signInManager.GetExternalLoginInfoAsync();
@@ -43,6 +48,7 @@ public static class AccountEndpoints
             }
 
             var user = await userManager.FindByEmailAsync(email);
+            var isNewAccount = user is null;
             if (user is null)
             {
                 user = new ApplicationUser
@@ -85,6 +91,8 @@ public static class AccountEndpoints
             }
 
             await signInManager.SignInAsync(user, isPersistent: true);
+            await RecordArrivalAsync(visits, http, user.Id, isNewAccount, info.LoginProvider);
+
             var safeReturn = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith('/') ? "/" : returnUrl;
             return Results.Redirect(safeReturn);
         });
@@ -113,6 +121,44 @@ public static class AccountEndpoints
         var redirectUrl = $"/account/external-callback?returnUrl={Uri.EscapeDataString(safeReturn)}";
         var properties = signInManager.ConfigureExternalAuthenticationProperties(provider, redirectUrl);
         return Results.Challenge(properties, [provider]);
+    }
+
+    /// <summary>
+    /// Ties the sign-in back to the visit it came from, which is what lets the insights page
+    /// say "Gumtree sent eleven visitors and two of them registered".
+    /// </summary>
+    private static async Task RecordArrivalAsync(
+        IVisitStore visits,
+        HttpContext http,
+        string userId,
+        bool isNewAccount,
+        string provider)
+    {
+        var sessionKey = VisitCookies.ReadGuid(http, VisitCookies.Session);
+        if (sessionKey is null)
+        {
+            return;
+        }
+
+        try
+        {
+            var sessionId = await visits.FindBySessionKeyAsync(sessionKey.Value);
+            if (sessionId is not int id)
+            {
+                return;
+            }
+
+            await visits.RecordEventAsync(
+                id,
+                isNewAccount ? VisitEventKind.Registered : VisitEventKind.SignedIn,
+                "/account/external-callback",
+                provider,
+                userId: userId);
+        }
+        catch (Exception)
+        {
+            // Sign-in must succeed whether or not we managed to log it.
+        }
     }
 
     private static bool IsSeedAdmin(string email, string seedEmail) =>

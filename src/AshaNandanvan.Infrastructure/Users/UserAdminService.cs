@@ -227,6 +227,11 @@ public sealed class UserAdminService : IUserAdminService
             }
         }
 
+        // The visit counts stay, but they stop pointing at a person.
+        await _db.VisitSessions
+            .Where(s => s.UserId == userId)
+            .ExecuteUpdateAsync(set => set.SetProperty(s => s.UserId, (string?)null), cancellationToken);
+
         await _db.SaveChangesAsync(cancellationToken);
 
         var result = await _users.DeleteAsync(user);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using AshaNandanvan.Application;
+using AshaNandanvan.Application.Analytics;
 using AshaNandanvan.Application.Configuration;
 using AshaNandanvan.Application.Cart;
 using AshaNandanvan.Application.Common;
@@ -41,6 +42,8 @@ builder.Services.AddScoped<AuthenticationStateProvider, ServerAuthenticationStat
 builder.Services.AddMudServices();
 builder.Services.AddScoped<ICartService, CartService>();
 builder.Services.AddScoped<IImageStorage, FileImageStorage>();
+builder.Services.AddScoped<IVisitTracker, VisitTracker>();
+builder.Services.AddHostedService<VisitRetentionService>();
 
 builder.Services.AddAuthentication(options =>
     {
@@ -123,6 +126,14 @@ await using (var scope = app.Services.CreateAsyncScope())
         payment.Provider,
         payment.Square.UseSandbox,
         squareStatus);
+
+    var analytics = scope.ServiceProvider.GetRequiredService<IOptions<AnalyticsOptions>>().Value;
+    if (analytics.Enabled && string.IsNullOrWhiteSpace(analytics.IpHashSalt))
+    {
+        app.Logger.LogWarning(
+            "Analytics:IpHashSalt is not set. Visitor counts still work, but the stored IP hashes "
+            + "are guessable. Set any long random string and keep it unchanged.");
+    }
 }
 
 app.UseForwardedHeaders();
@@ -144,9 +155,11 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseMiddleware<VisitTrackingMiddleware>();
 app.UseAntiforgery();
 
 app.MapStaticAssets();
+app.MapVisitEndpoints();
 app.MapAccountEndpoints();
 app.MapYouTubeEndpoints();
 app.MapPaymentWebhooks();

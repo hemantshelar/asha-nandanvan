@@ -31,6 +31,15 @@
         window.ashaCopy = function (text) {
             return navigator.clipboard.writeText(text);
         };
+        window.ashaVisit = function () {
+            var read = function (name) {
+                var found = document.cookie.split("; ").find(function (part) {
+                    return part.indexOf(name + "=") === 0;
+                });
+                return found ? decodeURIComponent(found.substring(name.length + 1)) : "";
+            };
+            return { session: read("an_s"), width: window.innerWidth || 0 };
+        };
         (function () {
             var dotNet = null;
             var infoOf = function (file) {
