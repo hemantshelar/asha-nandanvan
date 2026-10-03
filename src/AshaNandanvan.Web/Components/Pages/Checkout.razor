@@ -53,8 +53,8 @@
                 </label>
                 @if (IsStayCheckout)
                 {
-                    <p>
-                        Drop-off
+                    <p class="field-static">
+                        <span>Drop-off</span>
                         <strong>@_request.PickupDate.ToString("dddd d MMMM") · @_request.PickupWindow</strong>
                     </p>
                     <p class="muted">This is the drop-off you already chose. We will meet you then.</p>

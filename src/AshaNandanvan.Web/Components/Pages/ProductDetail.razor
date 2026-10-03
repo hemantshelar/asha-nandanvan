@@ -76,14 +76,14 @@ else
                         var index = i;
                         var dog = _dogs[index];
                         <article class="stay-dog-card">
-                            <div class="stay-dog-card__head">
-                                <strong>@(index == 0 ? "Lead dog" : "Companion")</strong>
-                                @if (index > 0)
-                                {
+                            <strong class="stay-dog-card__title">@(index == 0 ? "Lead dog" : "Companion")</strong>
+                            @if (index > 0)
+                            {
+                                <div class="stay-dog-card__aside">
                                     <span class="muted">@CatalogFormatting.Money(_quote?.ExtraNightly ?? 0) / night on this plan</span>
                                     <button type="button" class="text-link" @onclick="() => RemoveDog(index)">Remove</button>
-                                }
-                            </div>
+                                </div>
+                            }
                             <div class="stay-book__fields">
                                 <label>
                                     Dog's name
@@ -182,7 +182,7 @@ else
                             @(NeedsTrialBooking ? "Book free trial night" : "Book this stay")
                         </button>
                     </div>
-                    <p><a class="text-link" href="/offer/@OfferCatalog.DogSitting.Slug">Back to dog sitting</a></p>
+                    <p class="stay-book__back"><a class="text-link" href="/offer/@OfferCatalog.DogSitting.Slug">Back to dog sitting</a></p>
                 </div>
                 }
             </div>
