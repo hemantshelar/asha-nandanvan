@@ -146,7 +146,7 @@
     private string PaymentLabel =>
         _order is null ? string.Empty
         : _order.Status.IsPaid() ? (_order.PaymentProvider is { Length: > 0 } paid ? paid : "Paid")
-        : !string.IsNullOrWhiteSpace(_order.PaymentProvider) ? _order.PaymentProvider
+        : _order.PaymentStarted ? "Checkout started, not finished"
         : "Waiting";
 
     private static string StatusTone(OrderSummary order) =>
@@ -157,6 +157,27 @@
     protected override async Task OnInitializedAsync()
     {
         await ReloadAsync();
+        await ConfirmStartedCheckoutAsync();
+    }
+
+    // A checkout may have been paid without the customer returning to us. Ask the provider
+    // once on load so we show Paid instead of offering the QR a second time.
+    private async Task ConfirmStartedCheckoutAsync()
+    {
+        if (_order is null || !_order.PaymentStarted || !_order.Status.IsApproved())
+        {
+            return;
+        }
+
+        try
+        {
+            await Payment.ConfirmReturnAsync(_order.OrderNumber, null);
+            await ReloadAsync();
+        }
+        catch
+        {
+            // Leave the order as it is; the admin can still mark it paid by hand.
+        }
     }
 
     private async Task ReloadAsync()

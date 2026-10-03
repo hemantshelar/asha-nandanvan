@@ -28,11 +28,16 @@ public sealed record OrderSummary(
     int? AlbumId = null)
 {
     public bool IsDogStay => Items.Any(i => i.StayEndsAt is not null || i.IsTrialStay);
+
+    // An approved order is unpaid by definition, so status alone decides this. A stored
+    // reference only means a checkout was opened; the customer may never have finished it.
     public bool CanPay =>
         Status.IsApproved()
         && Total > 0
-        && string.IsNullOrWhiteSpace(PaymentReference)
         && !HasTrialStay;
+
+    public bool PaymentStarted =>
+        !string.IsNullOrWhiteSpace(PaymentReference) && !Status.IsPaid();
 
     public bool HasTrialStay => Items.Any(i => i.IsTrialStay);
 
